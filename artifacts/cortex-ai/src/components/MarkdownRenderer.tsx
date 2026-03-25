@@ -2,7 +2,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Check, Copy, Eye, EyeOff, ExternalLink } from "lucide-react";
-import { transform } from "@babel/standalone";
+import * as Babel from "@babel/standalone";
 
 const PREVIEWABLE = new Set(["html", "jsx", "tsx", "react"]);
 
@@ -30,7 +30,7 @@ function buildPreviewSrc(code: string, language: string): string {
 
   let transformed: string;
   try {
-    transformed = transform(sandboxCode, {
+    transformed = Babel.transform(sandboxCode, {
       presets: ["react"],
       filename: "preview.jsx",
     }).code!;
