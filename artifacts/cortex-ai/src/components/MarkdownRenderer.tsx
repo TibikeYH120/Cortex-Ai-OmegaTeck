@@ -1,11 +1,67 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Eye, EyeOff, ExternalLink } from "lucide-react";
+
+const PREVIEWABLE = new Set(["html", "jsx", "tsx", "react"]);
+
+function buildPreviewSrc(code: string, language: string): string {
+  if (language === "html") {
+    // Inject dark background if none present
+    const hasBody = /<body/i.test(code);
+    const withStyle = hasBody
+      ? code.replace(/<body/i, `<body style="background:#0a0a12;color:#e2e8f0;font-family:system-ui,sans-serif;padding:16px"`)
+      : `<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box}body{background:#0a0a12;color:#e2e8f0;font-family:system-ui,sans-serif;padding:16px;margin:0}</style></head><body>${code}</body></html>`;
+    return withStyle;
+  }
+
+  // JSX / TSX / React — compile with Babel standalone + React CDN
+  // Strip import/export statements for sandbox compatibility
+  const stripped = code
+    .replace(/^import\s+.*?;?\s*$/gm, "")
+    .replace(/^export\s+default\s+/gm, "")
+    .replace(/^export\s+/gm, "")
+    .trim();
+
+  // Try to detect the component name
+  const match = stripped.match(/function\s+(\w+)\s*\(/) || stripped.match(/const\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=]*)=>/);
+  const componentName = match?.[1] || "App";
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { background: #0a0a12; color: #e2e8f0; font-family: system-ui, sans-serif; padding: 16px; margin: 0; }
+    #error { color: #f87171; font-family: monospace; font-size: 13px; padding: 12px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+    try {
+      ${stripped}
+      const rootEl = document.getElementById('root');
+      const root = ReactDOM.createRoot(rootEl);
+      root.render(React.createElement(${componentName}));
+    } catch(e) {
+      document.getElementById('root').innerHTML = '<div id="error">Preview error: ' + e.message + '</div>';
+    }
+  </script>
+</body>
+</html>`;
+}
 
 function CodeBlock({ children, className }: { children: string; className?: string }) {
   const [copied, setCopied] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const language = className?.replace("language-", "") || "code";
+  const canPreview = PREVIEWABLE.has(language);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(children);
@@ -13,34 +69,69 @@ function CodeBlock({ children, className }: { children: string; className?: stri
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const previewSrc = canPreview && showPreview ? buildPreviewSrc(children, language) : null;
+
   return (
     <div className="my-4 rounded-xl overflow-hidden border border-white/8 bg-black/60">
+      {/* Header bar */}
       <div className="flex items-center justify-between px-4 py-2 bg-white/4 border-b border-white/6">
         <span className="font-mono text-[10px] tracking-widest text-[#00d0ff]/70 uppercase">{language}</span>
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-mono text-muted hover:text-white hover:bg-white/8 transition-all"
-        >
-          {copied ? <Check size={11} className="text-[#00ff88]" /> : <Copy size={11} />}
-          {copied ? "Másolva" : "Másolás"}
-        </button>
+        <div className="flex items-center gap-1">
+          {canPreview && (
+            <button
+              onClick={() => setShowPreview(p => !p)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-mono transition-all"
+              style={showPreview
+                ? { color: "#00d0ff", background: "rgba(0,208,255,0.12)", border: "1px solid rgba(0,208,255,0.3)" }
+                : { color: "rgba(255,255,255,0.4)", background: "transparent", border: "1px solid transparent" }
+              }
+              title={showPreview ? "Hide preview" : "Show live preview"}
+            >
+              {showPreview ? <EyeOff size={11} /> : <Eye size={11} />}
+              {showPreview ? "Hide" : "Preview"}
+            </button>
+          )}
+          <button
+            onClick={handleCopy}
+            className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-mono text-muted hover:text-white hover:bg-white/8 transition-all"
+          >
+            {copied ? <Check size={11} className="text-[#00ff88]" /> : <Copy size={11} />}
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
       </div>
+
+      {/* Live Preview */}
+      {showPreview && previewSrc && (
+        <div className="border-b border-white/6">
+          <div className="flex items-center justify-between px-4 py-1.5 bg-[#00d0ff]/4">
+            <span className="font-mono text-[9px] text-[#00d0ff]/60 uppercase tracking-widest">Live Preview</span>
+            <button
+              onClick={() => {
+                const blob = new Blob([previewSrc], { type: "text/html" });
+                const url = URL.createObjectURL(blob);
+                window.open(url, "_blank");
+              }}
+              className="flex items-center gap-1 text-[9px] font-mono text-muted/50 hover:text-[#00d0ff] transition-colors"
+            >
+              <ExternalLink size={9} /> Open in new tab
+            </button>
+          </div>
+          <iframe
+            srcDoc={previewSrc}
+            sandbox="allow-scripts"
+            className="w-full bg-[#0a0a12]"
+            style={{ height: "320px", border: "none" }}
+            title="Code preview"
+          />
+        </div>
+      )}
+
+      {/* Code */}
       <pre className="overflow-x-auto p-4 m-0 bg-transparent">
         <code className="font-mono text-[13px] leading-relaxed text-[#9dd0ff]">{children}</code>
       </pre>
     </div>
-  );
-}
-
-function InlineCopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-      className="inline-flex items-center gap-1 ml-1 opacity-0 group-hover:opacity-100 text-[10px] text-muted hover:text-white transition-all"
-    >
-      {copied ? <Check size={10} /> : <Copy size={10} />}
-    </button>
   );
 }
 

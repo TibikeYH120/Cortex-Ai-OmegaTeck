@@ -90,23 +90,23 @@ export function ProfileModal({ open, onOpenChange }: ModalProps) {
       queryClient.invalidateQueries({ queryKey: getGetProfileQueryKey() });
       queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
       setSaved(true);
-      setSuccess("Profil sikeresen frissítve!");
+      setSuccess("Profile updated successfully!");
       setTimeout(() => { setSaved(false); setSuccess(""); onOpenChange(false); }, 1500);
     } catch (err: any) {
-      setError(err?.message || "Hiba a mentés során.");
+      setError(err?.message || "Error saving profile.");
     }
   };
 
   const handleChangePassword = async () => {
     setError(""); setSuccess("");
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setError("Töltsd ki az összes jelszó mezőt!"); return;
+      setError("Please fill in all password fields!"); return;
     }
     if (newPassword !== confirmPassword) {
-      setError("Az új jelszavak nem egyeznek!"); return;
+      setError("New passwords do not match!"); return;
     }
     if (newPassword.length < 6) {
-      setError("Az új jelszónak legalább 6 karakternek kell lennie."); return;
+      setError("New password must be at least 6 characters."); return;
     }
     try {
       const res = await fetch("/api/profile/change-password", {
@@ -116,24 +116,24 @@ export function ProfileModal({ open, onOpenChange }: ModalProps) {
         body: JSON.stringify({ currentPassword, newPassword }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "Hiba a jelszóváltás során."); return; }
-      setSuccess("Jelszó sikeresen megváltva!");
+      if (!res.ok) { setError(data.error || "Error changing password."); return; }
+      setSuccess("Password changed successfully!");
       setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
     } catch {
-      setError("Hálózati hiba.");
+      setError("Network error.");
     }
   };
 
   if (!open) return null;
 
   const joinDate = profile?.createdAt
-    ? new Date(profile.createdAt).toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric" })
+    ? new Date(profile.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
     : "-";
 
   const tabs = [
-    { id: "profile", label: "Profil", icon: <User size={13} /> },
-    { id: "password", label: "Jelszó", icon: <Key size={13} /> },
-    { id: "stats", label: "Statisztika", icon: <BarChart3 size={13} /> },
+    { id: "profile", label: "Profile", icon: <User size={13} /> },
+    { id: "password", label: "Password", icon: <Key size={13} /> },
+    { id: "stats", label: "Statistics", icon: <BarChart3 size={13} /> },
   ] as const;
 
   return (
@@ -150,7 +150,7 @@ export function ProfileModal({ open, onOpenChange }: ModalProps) {
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(0,208,255,0.08)", border: "1px solid rgba(0,208,255,0.2)" }}>
               <User size={15} className="text-[#00d0ff]" />
             </div>
-            <h2 className="font-display font-bold text-base text-white flex-1">Felhasználói fiók</h2>
+            <h2 className="font-display font-bold text-base text-white flex-1">User Account</h2>
             <button onClick={() => onOpenChange(false)} className="text-muted hover:text-white transition-colors p-1 rounded-lg hover:bg-white/6">
               <X size={17} />
             </button>
@@ -160,19 +160,19 @@ export function ProfileModal({ open, onOpenChange }: ModalProps) {
           <div className="px-6 py-5 flex items-center gap-5 border-b border-white/4 bg-black/10 shrink-0">
             {isGuest ? (
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-[#00d0ff]" style={{ background: "rgba(0,208,255,0.08)", border: "1px solid rgba(0,208,255,0.2)" }}>
-                V
+                G
               </div>
             ) : (
               <UserAvatar name={user?.name || "?"} email={user?.email} size={64} />
             )}
             <div className="flex-1 min-w-0">
-              <div className="text-lg font-bold text-white truncate">{user?.name || "Vendég"}</div>
+              <div className="text-lg font-bold text-white truncate">{user?.name || "Guest"}</div>
               <div className="text-sm text-muted/60 font-mono truncate">{user?.email}</div>
               <div className="mt-1.5 flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider font-semibold" style={{ background: "rgba(0,208,255,0.08)", border: "1px solid rgba(0,208,255,0.2)", color: "#00d0ff" }}>
-                  {user?.role === "guest" ? "Vendég" : "OmegaTeck Tag"}
+                  {user?.role === "guest" ? "Guest" : "OmegaTeck Member"}
                 </span>
-                {!isGuest && <span className="text-[10px] text-muted/40 font-mono">Csatlakozott: {joinDate}</span>}
+                {!isGuest && <span className="text-[10px] text-muted/40 font-mono">Joined: {joinDate}</span>}
               </div>
             </div>
           </div>
@@ -202,7 +202,7 @@ export function ProfileModal({ open, onOpenChange }: ModalProps) {
               <div className="p-6">
                 <div className="p-4 rounded-xl flex items-start gap-3 text-sm" style={{ background: "rgba(0,208,255,0.05)", border: "1px solid rgba(0,208,255,0.15)" }}>
                   <ShieldAlert size={17} className="shrink-0 text-[#00d0ff] mt-0.5" />
-                  <p className="text-foreground/80">Vendég módban a profil nem szerkeszthető. Kérlek regisztrálj a teljes OmegaTeck élményhez!</p>
+                  <p className="text-foreground/80">Profile editing is not available in guest mode. Sign up for the full OmegaTeck experience!</p>
                 </div>
               </div>
             ) : isLoading ? (
@@ -213,41 +213,41 @@ export function ProfileModal({ open, onOpenChange }: ModalProps) {
             ) : tab === "profile" ? (
               <div className="p-6 space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-mono text-muted/70 uppercase tracking-wider">Megjelenített név</label>
+                  <label className="text-[10px] font-mono text-muted/70 uppercase tracking-wider">Display name</label>
                   <input
                     type="text" value={name} onChange={e => setName(e.target.value)}
                     className="w-full rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition-all"
                     style={{ background: "#10101f", border: "1px solid rgba(255,255,255,0.08)" }}
                     onFocus={e => e.currentTarget.style.borderColor = "rgba(0,208,255,0.4)"}
                     onBlur={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"}
-                    placeholder="Pl. Tibor"
+                    placeholder="e.g. Alex"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-mono text-muted/70 uppercase tracking-wider">Bemutatkozás</label>
+                  <label className="text-[10px] font-mono text-muted/70 uppercase tracking-wider">Bio</label>
                   <textarea
                     value={bio} onChange={e => setBio(e.target.value)} rows={3}
                     className="w-full rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition-all resize-none"
                     style={{ background: "#10101f", border: "1px solid rgba(255,255,255,0.08)" }}
                     onFocus={e => e.currentTarget.style.borderColor = "rgba(0,208,255,0.4)"}
                     onBlur={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"}
-                    placeholder="Pár szó rólad..."
+                    placeholder="A few words about you..."
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-mono text-muted/70 uppercase tracking-wider">Email cím</label>
+                  <label className="text-[10px] font-mono text-muted/70 uppercase tracking-wider">Email address</label>
                   <div className="w-full rounded-xl px-4 py-3 text-sm text-muted/50 font-mono" style={{ background: "#0d0d1c", border: "1px solid rgba(255,255,255,0.04)" }}>
                     {user?.email}
-                    <span className="ml-2 text-[10px] text-muted/30">(nem módosítható)</span>
+                    <span className="ml-2 text-[10px] text-muted/30">(cannot be changed)</span>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-mono text-muted/70 uppercase tracking-wider">Profilikon előnézet</label>
+                  <label className="text-[10px] font-mono text-muted/70 uppercase tracking-wider">Avatar preview</label>
                   <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: "#10101f", border: "1px solid rgba(255,255,255,0.05)" }}>
                     <UserAvatar name={name || user?.name || "?"} email={user?.email} size={56} />
                     <div className="text-xs text-muted/60">
-                      <div className="font-mono mb-1">Az egyedi ikonod a nevedből generált.</div>
-                      <div className="text-muted/40">Minden felhasználónak egyedi mintája van.</div>
+                      <div className="font-mono mb-1">Your unique avatar is generated from your name.</div>
+                      <div className="text-muted/40">Every user gets a distinct pattern.</div>
                     </div>
                   </div>
                 </div>
@@ -256,12 +256,12 @@ export function ProfileModal({ open, onOpenChange }: ModalProps) {
               <div className="p-6 space-y-4">
                 <div className="p-3 rounded-xl flex items-center gap-2 text-xs" style={{ background: "rgba(108,59,255,0.08)", border: "1px solid rgba(108,59,255,0.2)" }}>
                   <Shield size={13} className="text-[#6c3bff] shrink-0" />
-                  <span className="text-muted/70">A jelszavad biztonságosan titkosítva van tárolva.</span>
+                  <span className="text-muted/70">Your password is securely encrypted and stored.</span>
                 </div>
                 {[
-                  { label: "Jelenlegi jelszó", value: currentPassword, setValue: setCurrentPassword, show: showCurrent, setShow: setShowCurrent },
-                  { label: "Új jelszó", value: newPassword, setValue: setNewPassword, show: showNew, setShow: setShowNew },
-                  { label: "Új jelszó megerősítése", value: confirmPassword, setValue: setConfirmPassword, show: false, setShow: () => {} },
+                  { label: "Current password", value: currentPassword, setValue: setCurrentPassword, show: showCurrent, setShow: setShowCurrent },
+                  { label: "New password", value: newPassword, setValue: setNewPassword, show: showNew, setShow: setShowNew },
+                  { label: "Confirm new password", value: confirmPassword, setValue: setConfirmPassword, show: false, setShow: () => {} },
                 ].map((field, i) => (
                   <div key={i} className="space-y-2">
                     <label className="text-[10px] font-mono text-muted/70 uppercase tracking-wider">{field.label}</label>
@@ -290,7 +290,7 @@ export function ProfileModal({ open, onOpenChange }: ModalProps) {
                 ))}
                 {newPassword && confirmPassword && newPassword !== confirmPassword && (
                   <div className="text-xs text-red-400 flex items-center gap-1">
-                    <AlertCircle size={12} /> A jelszavak nem egyeznek
+                    <AlertCircle size={12} /> Passwords do not match
                   </div>
                 )}
               </div>
@@ -299,17 +299,17 @@ export function ProfileModal({ open, onOpenChange }: ModalProps) {
                 {stats ? (
                   <>
                     <div className="grid grid-cols-3 gap-3">
-                      <StatCard icon={<MessageSquare size={16} />} label="Üzenetek" value={stats.messageCount} color="#00d0ff" />
-                      <StatCard icon={<Zap size={16} />} label="Chatok" value={stats.conversationCount} color="#6c3bff" />
-                      <StatCard icon={<User size={16} />} label="Rang" value="Tag" color="#00ff88" />
+                      <StatCard icon={<MessageSquare size={16} />} label="Messages" value={stats.messageCount} color="#00d0ff" />
+                      <StatCard icon={<Zap size={16} />} label="Chats" value={stats.conversationCount} color="#6c3bff" />
+                      <StatCard icon={<User size={16} />} label="Rank" value="Member" color="#00ff88" />
                     </div>
                     <div className="p-4 rounded-xl space-y-3" style={{ background: "#10101f", border: "1px solid rgba(255,255,255,0.05)" }}>
-                      <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-3">Fiók részletek</div>
+                      <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-3">Account details</div>
                       {[
-                        { label: "Csatlakozás dátuma", value: joinDate },
-                        { label: "Fiók típusa", value: user?.role === "guest" ? "Vendég" : "OmegaTeck Tag" },
-                        { label: "Felhasználói ID", value: `#${profile?.id}` },
-                        { label: "Email cím", value: user?.email || "-" },
+                        { label: "Member since", value: joinDate },
+                        { label: "Account type", value: user?.role === "guest" ? "Guest" : "OmegaTeck Member" },
+                        { label: "User ID", value: `#${profile?.id}` },
+                        { label: "Email", value: user?.email || "-" },
                       ].map((item, i) => (
                         <div key={i} className="flex justify-between items-center py-1 border-b border-white/3 last:border-0">
                           <span className="text-xs text-muted/50 font-mono">{item.label}</span>
@@ -339,7 +339,7 @@ export function ProfileModal({ open, onOpenChange }: ModalProps) {
           {/* Footer */}
           <div className="px-6 py-4 border-t border-white/6 bg-black/20 flex justify-end gap-3 shrink-0">
             <button onClick={() => onOpenChange(false)} className="px-4 py-2 rounded-xl text-sm font-medium text-muted hover:text-white transition-colors">
-              Mégse
+              Cancel
             </button>
             {!isGuest && (
               <button
@@ -349,7 +349,7 @@ export function ProfileModal({ open, onOpenChange }: ModalProps) {
                 style={{ background: "linear-gradient(135deg, #00d0ff, #6c3bff)", color: "#000", boxShadow: "0 0 16px rgba(0,208,255,0.25)" }}
               >
                 <Save size={14} />
-                {tab === "password" ? "Jelszó Módosítása" : tab === "stats" ? "Bezárás" : (saved ? "Mentve ✓" : updateMutation.isPending ? "Mentés..." : "Profil Mentése")}
+                {tab === "password" ? "Change Password" : tab === "stats" ? "Close" : (saved ? "Saved ✓" : updateMutation.isPending ? "Saving..." : "Save Profile")}
               </button>
             )}
           </div>
@@ -407,10 +407,10 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
   if (!open) return null;
 
   const tabs = [
-    { id: "ai", label: "AI Modell", icon: <Cpu size={13} /> },
-    { id: "appearance", label: "Megjelenés", icon: <Palette size={13} /> },
-    { id: "notifications", label: "Értesítések", icon: <Volume2 size={13} /> },
-    { id: "about", label: "Névjegy", icon: <Info size={13} /> },
+    { id: "ai", label: "AI Model", icon: <Cpu size={13} /> },
+    { id: "appearance", label: "Appearance", icon: <Palette size={13} /> },
+    { id: "notifications", label: "Notifications", icon: <Volume2 size={13} /> },
+    { id: "about", label: "About", icon: <Info size={13} /> },
   ] as const;
 
   return (
@@ -427,7 +427,7 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(0,208,255,0.08)", border: "1px solid rgba(0,208,255,0.2)" }}>
               <Cpu size={15} className="text-[#00d0ff]" />
             </div>
-            <h2 className="font-display font-bold text-base text-white flex-1">Rendszer beállítások</h2>
+            <h2 className="font-display font-bold text-base text-white flex-1">System Settings</h2>
             <button onClick={() => onOpenChange(false)} className="text-muted hover:text-white transition-colors p-1 rounded-lg hover:bg-white/6">
               <X size={17} />
             </button>
@@ -460,24 +460,24 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
                   <div className="flex-1">
                     <div className="text-sm font-bold text-white">Cortex AI</div>
                     <div className="text-[11px] font-mono text-muted/60 mt-0.5">claude-sonnet-4-6 · Anthropic</div>
-                    <div className="text-[10px] text-muted/40 mt-1">Legfrissebb Claude Sonnet modell</div>
+                    <div className="text-[10px] text-muted/40 mt-1">Latest Claude Sonnet model</div>
                   </div>
                   <div className="px-2 py-1 rounded-md text-[10px] font-mono uppercase" style={{ background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.2)", color: "#00ff88" }}>
-                    Aktív
+                    Active
                   </div>
                 </div>
 
-                {/* AI Settings */}
+                {/* Chat Settings */}
                 <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>
-                  <div className="px-4 py-2 text-[10px] font-mono text-muted/50 uppercase tracking-widest" style={{ background: "#0e0e1e" }}>Chat beállítások</div>
+                  <div className="px-4 py-2 text-[10px] font-mono text-muted/50 uppercase tracking-widest" style={{ background: "#0e0e1e" }}>Chat settings</div>
                   <div className="px-4" style={{ background: "#10101f" }}>
-                    <SettingRow icon={<Zap size={14} />} label="Streaming válasz" desc="Valós időben látod a generált szöveget">
+                    <SettingRow icon={<Zap size={14} />} label="Streaming response" desc="See generated text in real time">
                       <Toggle value={streamingMode} onChange={setStreamingMode} />
                     </SettingRow>
-                    <SettingRow icon={<MessageSquare size={14} />} label="Automatikus görgetés" desc="Új üzeneteknél automatikusan legörgeti az oldalt">
+                    <SettingRow icon={<MessageSquare size={14} />} label="Auto-scroll" desc="Automatically scroll to new messages">
                       <Toggle value={autoScroll} onChange={setAutoScroll} />
                     </SettingRow>
-                    <SettingRow icon={<Globe size={14} />} label="Kód kiemelés" desc="Szintaxis kiemelés a kód blokkokban">
+                    <SettingRow icon={<Globe size={14} />} label="Code highlighting" desc="Syntax highlighting in code blocks">
                       <Toggle value={codeHighlight} onChange={setCodeHighlight} />
                     </SettingRow>
                   </div>
@@ -485,15 +485,15 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
 
                 {/* Capabilities */}
                 <div>
-                  <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-3">Modell képességek</div>
+                  <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-3">Model capabilities</div>
                   <div className="grid grid-cols-2 gap-2">
                     {[
-                      { label: "Kód írás & debug", color: "#00d0ff" },
-                      { label: "Magyar & angol", color: "#6c3bff" },
-                      { label: "Kreatív tartalom", color: "#ff2e7e" },
-                      { label: "Technikai elemzés", color: "#00ff88" },
-                      { label: "Game Design", color: "#ffd700" },
-                      { label: "Web fejlesztés", color: "#00c9ff" },
+                      { label: "Code writing & debug", color: "#00d0ff" },
+                      { label: "Multi-language support", color: "#6c3bff" },
+                      { label: "Creative content", color: "#ff2e7e" },
+                      { label: "Technical analysis", color: "#00ff88" },
+                      { label: "Game design", color: "#ffd700" },
+                      { label: "Web development", color: "#00c9ff" },
                     ].map((cap, i) => (
                       <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "#0e0e1e", border: "1px solid rgba(255,255,255,0.04)" }}>
                         <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: cap.color }} />
@@ -508,27 +508,27 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
             {settingsTab === "appearance" && (
               <div className="space-y-5">
                 <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>
-                  <div className="px-4 py-2 text-[10px] font-mono text-muted/50 uppercase tracking-widest" style={{ background: "#0e0e1e" }}>Felület</div>
+                  <div className="px-4 py-2 text-[10px] font-mono text-muted/50 uppercase tracking-widest" style={{ background: "#0e0e1e" }}>Interface</div>
                   <div className="px-4" style={{ background: "#10101f" }}>
-                    <SettingRow icon={<Palette size={14} />} label="Sötét téma" desc="Cyberpunk dark mód (alapértelmezett)">
+                    <SettingRow icon={<Palette size={14} />} label="Dark theme" desc="Cyberpunk dark mode (default)">
                       <Toggle value={true} onChange={() => {}} />
                     </SettingRow>
-                    <SettingRow icon={<MessageSquare size={14} />} label="Kompakt nézet" desc="Kisebb üzenet buborékok">
+                    <SettingRow icon={<MessageSquare size={14} />} label="Compact view" desc="Smaller message bubbles">
                       <Toggle value={compactMode} onChange={setCompactMode} />
                     </SettingRow>
-                    <SettingRow icon={<Info size={14} />} label="Időbélyegek" desc="Üzenet küldési idő megjelenítése">
+                    <SettingRow icon={<Info size={14} />} label="Timestamps" desc="Show message send time">
                       <Toggle value={showTimestamps} onChange={setShowTimestamps} />
                     </SettingRow>
                   </div>
                 </div>
 
                 <div>
-                  <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-3">Szín paletta</div>
+                  <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-3">Color palette</div>
                   <div className="grid grid-cols-4 gap-2">
                     {[
-                      { name: "Háttér", color: "#03030a" },
+                      { name: "Background", color: "#03030a" },
                       { name: "Cyan", color: "#00d0ff" },
-                      { name: "Lila", color: "#6c3bff" },
+                      { name: "Purple", color: "#6c3bff" },
                       { name: "Pink", color: "#ff2e7e" },
                     ].map((c, i) => (
                       <div key={i} className="flex flex-col items-center gap-2">
@@ -544,16 +544,16 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
             {settingsTab === "notifications" && (
               <div className="space-y-5">
                 <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>
-                  <div className="px-4 py-2 text-[10px] font-mono text-muted/50 uppercase tracking-widest" style={{ background: "#0e0e1e" }}>Értesítési beállítások</div>
+                  <div className="px-4 py-2 text-[10px] font-mono text-muted/50 uppercase tracking-widest" style={{ background: "#0e0e1e" }}>Notification settings</div>
                   <div className="px-4" style={{ background: "#10101f" }}>
-                    <SettingRow icon={<Volume2 size={14} />} label="Hang értesítések" desc="Hang lejátszása új üzenetnél">
+                    <SettingRow icon={<Volume2 size={14} />} label="Sound notifications" desc="Play sound on new message">
                       <Toggle value={soundEnabled} onChange={setSoundEnabled} />
                     </SettingRow>
                   </div>
                 </div>
                 <div className="p-4 rounded-xl text-sm text-muted/50" style={{ background: "rgba(0,208,255,0.03)", border: "1px solid rgba(0,208,255,0.08)" }}>
                   <Globe size={14} className="text-[#00d0ff]/40 mb-2" />
-                  Hamarosan több értesítési lehetőség érkezik. Az OmegaTeck folyamatosan fejleszti a Cortex AI platformot.
+                  More notification options coming soon. OmegaTeck is continuously improving the Cortex AI platform.
                 </div>
               </div>
             )}
@@ -569,12 +569,12 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
                 </div>
 
                 <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>
-                  <div className="px-4 py-2 text-[10px] font-mono text-muted/50 uppercase tracking-widest" style={{ background: "#0e0e1e" }}>Kapcsolat állapot</div>
+                  <div className="px-4 py-2 text-[10px] font-mono text-muted/50 uppercase tracking-widest" style={{ background: "#0e0e1e" }}>Connection status</div>
                   <div className="px-4" style={{ background: "#10101f" }}>
                     {[
-                      { icon: <Wifi size={13} />, name: "OmegaTeck Core Server", status: "Kapcsolódva", color: "#00ff88" },
-                      { icon: <Cpu size={13} />, name: "Anthropic AI API", status: "Elérhető", color: "#00d0ff" },
-                      { icon: <Shield size={13} />, name: "Biztonságos munkamenet", status: "Aktív", color: "#6c3bff" },
+                      { icon: <Wifi size={13} />, name: "OmegaTeck Core Server", status: "Connected", color: "#00ff88" },
+                      { icon: <Cpu size={13} />, name: "Anthropic AI API", status: "Available", color: "#00d0ff" },
+                      { icon: <Shield size={13} />, name: "Secure session", status: "Active", color: "#6c3bff" },
                     ].map((item, i) => (
                       <div key={i} className="py-3 flex items-center gap-3 border-b border-white/4 last:border-0">
                         <span style={{ color: item.color }}>{item.icon}</span>
@@ -591,10 +591,10 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
                 <div className="p-4 rounded-xl space-y-2 text-[11px] font-mono" style={{ background: "#10101f", border: "1px solid rgba(255,255,255,0.04)" }}>
                   {[
                     { k: "Platform", v: "CORTEX AI v1.0.0" },
-                    { k: "Fejlesztő", v: "OmegaTeck Technology" },
-                    { k: "Alapító", v: "Tibor" },
-                    { k: "AI Motor", v: "Claude Sonnet 4.6" },
-                    { k: "Projektek", v: "OmegaHumanity, VoidExio" },
+                    { k: "Developer", v: "OmegaTeck Technology" },
+                    { k: "Founder", v: "Tibor" },
+                    { k: "AI Engine", v: "Claude Sonnet 4.6" },
+                    { k: "Projects", v: "OmegaHumanity, VoidExio" },
                   ].map(({ k, v }, i) => (
                     <div key={i} className="flex justify-between">
                       <span className="text-muted/40">{k}</span>
@@ -613,7 +613,7 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
               className="px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:bg-white/6"
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
             >
-              Bezárás
+              Close
             </button>
           </div>
         </div>

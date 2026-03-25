@@ -6,16 +6,18 @@ import { anthropic } from "@workspace/integrations-anthropic-ai";
 
 const router: IRouter = Router();
 
-const SYSTEM_PROMPT = `Te vagy a CORTEX AI, az OmegaTeck Technology fejlett mesterséges intelligencia asszisztense.
+const SYSTEM_PROMPT = `You are CORTEX AI, the advanced artificial intelligence assistant of OmegaTeck Technology.
 
-Az OmegaTeck Technology egy innovatív tech vállalat, alapítója és kreatív igazgatója Tibor. Projektjei: OmegaHumanity, VoidExio. Fókusz: játékfejlesztés, webfejlesztés, kreatív technológia, AI integráció.
+OmegaTeck Technology is an innovative tech company. Founder and creative director: Tibor. Projects: OmegaHumanity, VoidExio. Focus: game development, web development, creative technology, AI integration.
 
-Személyiség:
-- Technológiai szakértő, barátságos, közvetlen stílus
-- Ha magyarul írnak, magyarul válaszolj; ha angolul, angolul
-- Kódot mindig \`\`\` blokkban adj meg
-- Rövid, hatásos válaszok amikor lehet
-- Szakértő: React, Next.js, Three.js, Tailwind CSS, game design, Roblox, Unreal Engine 5`;
+Personality:
+- Technology expert, friendly, direct communication style
+- Respond in the language the user writes in (English by default)
+- Always wrap code in \`\`\` code blocks with the appropriate language tag
+- Keep responses concise and impactful when possible
+- Expert in: React, Next.js, Three.js, Tailwind CSS, game design, Roblox, Unreal Engine 5
+
+When generating HTML, React, or Next.js code, produce complete, runnable examples that can be previewed directly.`;
 
 router.get("/conversations", async (req: Request, res: Response) => {
   try {
@@ -27,14 +29,14 @@ router.get("/conversations", async (req: Request, res: Response) => {
     })));
   } catch (err) {
     req.log.error({ err }, "List conversations error");
-    res.status(500).json({ error: "Szerver hiba" });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
 router.post("/conversations", async (req: Request, res: Response) => {
   const { title } = req.body;
   if (!title) {
-    res.status(400).json({ error: "Cím kötelező" });
+    res.status(400).json({ error: "Title is required" });
     return;
   }
   try {
@@ -46,20 +48,20 @@ router.post("/conversations", async (req: Request, res: Response) => {
     });
   } catch (err) {
     req.log.error({ err }, "Create conversation error");
-    res.status(500).json({ error: "Szerver hiba" });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
 router.get("/conversations/:id", async (req: Request, res: Response) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
-    res.status(400).json({ error: "Érvénytelen azonosító" });
+    res.status(400).json({ error: "Invalid ID" });
     return;
   }
   try {
     const [conv] = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
     if (!conv) {
-      res.status(404).json({ error: "Nem található" });
+      res.status(404).json({ error: "Not found" });
       return;
     }
     const msgs = await db.select().from(messages).where(eq(messages.conversationId, id)).orderBy(asc(messages.createdAt));
@@ -77,33 +79,33 @@ router.get("/conversations/:id", async (req: Request, res: Response) => {
     });
   } catch (err) {
     req.log.error({ err }, "Get conversation error");
-    res.status(500).json({ error: "Szerver hiba" });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
 router.delete("/conversations/:id", async (req: Request, res: Response) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
-    res.status(400).json({ error: "Érvénytelen azonosító" });
+    res.status(400).json({ error: "Invalid ID" });
     return;
   }
   try {
     const deleted = await db.delete(conversations).where(eq(conversations.id, id)).returning();
     if (deleted.length === 0) {
-      res.status(404).json({ error: "Nem található" });
+      res.status(404).json({ error: "Not found" });
       return;
     }
     res.status(204).send();
   } catch (err) {
     req.log.error({ err }, "Delete conversation error");
-    res.status(500).json({ error: "Szerver hiba" });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
 router.get("/conversations/:id/messages", async (req: Request, res: Response) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
-    res.status(400).json({ error: "Érvénytelen azonosító" });
+    res.status(400).json({ error: "Invalid ID" });
     return;
   }
   try {
@@ -117,26 +119,26 @@ router.get("/conversations/:id/messages", async (req: Request, res: Response) =>
     })));
   } catch (err) {
     req.log.error({ err }, "List messages error");
-    res.status(500).json({ error: "Szerver hiba" });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
 router.post("/conversations/:id/messages", async (req: Request, res: Response) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
-    res.status(400).json({ error: "Érvénytelen azonosító" });
+    res.status(400).json({ error: "Invalid ID" });
     return;
   }
   const { content } = req.body;
   if (!content) {
-    res.status(400).json({ error: "Üzenet kötelező" });
+    res.status(400).json({ error: "Message content is required" });
     return;
   }
 
   try {
     const [conv] = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
     if (!conv) {
-      res.status(404).json({ error: "Nem található" });
+      res.status(404).json({ error: "Not found" });
       return;
     }
 
@@ -148,10 +150,13 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
       content: m.content,
     }));
 
+    // SSE headers — X-Accel-Buffering disables nginx proxy buffering
     res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("Connection", "keep-alive");
     res.setHeader("X-Accel-Buffering", "no");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.flushHeaders();
 
     let fullResponse = "";
     const stream = anthropic.messages.stream({
@@ -165,6 +170,8 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
       if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
         fullResponse += event.delta.text;
         res.write(`data: ${JSON.stringify({ content: event.delta.text })}\n\n`);
+        // Force-flush each chunk so the proxy doesn't buffer the stream
+        (res as any).flush?.();
       }
     }
 
@@ -174,9 +181,9 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
   } catch (err) {
     req.log.error({ err }, "Send message error");
     if (!res.headersSent) {
-      res.status(500).json({ error: "Szerver hiba" });
+      res.status(500).json({ error: "Server error" });
     } else {
-      res.write(`data: ${JSON.stringify({ error: "Szerver hiba" })}\n\n`);
+      res.write(`data: ${JSON.stringify({ error: "Server error" })}\n\n`);
       res.end();
     }
   }
