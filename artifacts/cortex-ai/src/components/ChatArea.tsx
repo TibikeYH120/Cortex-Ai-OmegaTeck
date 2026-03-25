@@ -26,7 +26,6 @@ export function ChatArea() {
   const { sendMessage, isStreaming, streamingContent, stopStream } = useChatStream({
     conversationId: activeConversationId,
     onFinished: (fullContent) => {
-      // Immediately append the final AI message so there's no flicker
       if (fullContent) {
         setLocalMessages(prev => [...prev, {
           id: Date.now(),
@@ -47,7 +46,6 @@ export function ChatArea() {
     }
   });
 
-  // Sync local messages from server (but don't override while streaming)
   useEffect(() => {
     if (activeConversationId && activeConversation && !isStreaming) {
       setLocalMessages(activeConversation.messages || []);
@@ -104,7 +102,7 @@ export function ChatArea() {
           setLocalMessages(prev => [...prev, {
             id: Date.now() + 1,
             role: "assistant",
-            content: "Vendég módban korlátozott hozzáférésem van. Kérlek regisztrálj, hogy a teljes CORTEX AI funkcionalitást elérd!\n\nA regisztráció után:\n- Végtelen AI üzenet\n- Mentett előzmények\n- Személyreszabott élmény",
+            content: "You're in guest mode with limited access. Sign up to unlock the full CORTEX AI experience!\n\nAfter registering you get:\n- Unlimited AI messages\n- Saved conversation history\n- Personalized experience",
             createdAt: new Date().toISOString()
           }]);
         }, 800);
@@ -120,7 +118,6 @@ export function ChatArea() {
 
   const handleRegenerate = () => {
     if (!lastUserMessage || isStreaming) return;
-    // Remove last AI message and resend
     setLocalMessages(prev => {
       const lastAiIdx = [...prev].reverse().findIndex(m => m.role === "assistant");
       if (lastAiIdx === -1) return prev;
@@ -144,10 +141,10 @@ export function ChatArea() {
   };
 
   const suggestionCards = [
-    { icon: "⚛️", title: "React komponens", sub: "Segíts egyet írni", prompt: "Segíts egy React komponensben TypeScript-tel" },
-    { icon: "🎮", title: "Game Design Doc", sub: "Új játék tervezése", prompt: "Írj egy game design dokumentumot egy indie játékhoz" },
-    { icon: "🌐", title: "Three.js alapok", sub: "3D web fejlesztés", prompt: "Magyarázd el a Three.js alapjait egy kezdőnek" },
-    { icon: "✦", title: "Landing page", sub: "OmegaTeck stílus", prompt: "Tervezz egy modern cyberpunk stílusú landing page-t" }
+    { icon: "⚛️", title: "React component", sub: "Help me build one", prompt: "Help me write a React component with TypeScript" },
+    { icon: "🎮", title: "Game Design Doc", sub: "Design a new game", prompt: "Write a game design document for an indie game" },
+    { icon: "🌐", title: "Three.js basics", sub: "3D web development", prompt: "Explain Three.js fundamentals for a beginner" },
+    { icon: "✦", title: "Landing page", sub: "OmegaTeck style", prompt: "Design a modern cyberpunk-style landing page" }
   ];
 
   const showWelcome = !activeConversationId && localMessages.length === 0;
@@ -164,7 +161,7 @@ export function ChatArea() {
             {activeConversation ? (
               <span className="truncate max-w-[200px] md:max-w-md">{activeConversation.title}</span>
             ) : (
-              <span>Új <span className="text-primary">beszélgetés</span></span>
+              <span>New <span className="text-primary">chat</span></span>
             )}
           </div>
         </div>
@@ -176,7 +173,7 @@ export function ChatArea() {
           <button
             onClick={() => { setActiveConversationId(null); setLocalMessages([]); }}
             className="w-9 h-9 rounded-xl bg-s2 border border-border flex items-center justify-center text-muted hover:text-primary hover:border-border2 transition-all"
-            title="Új beszélgetés"
+            title="New chat"
           >
             <Plus size={18} />
           </button>
@@ -211,10 +208,10 @@ export function ChatArea() {
                 </div>
                 <div className="font-mono text-[11px] text-muted tracking-[3px] uppercase mb-4">Cortex AI — OmegaTeck</div>
                 <h1 className="text-3xl lg:text-4xl font-bold leading-tight mb-4">
-                  Szia, <span className="text-primary text-glow">{user?.name?.split(" ")[0] || "Felhasználó"}</span>!<br />Miben segíthetek?
+                  Hi, <span className="text-primary text-glow">{user?.name?.split(" ")[0] || "there"}</span>!<br />How can I help?
                 </h1>
                 <p className="text-muted text-sm lg:text-base max-w-md font-light mb-10">
-                  Kérdezz bármit — kódolás, game design, web fejlesztés, kreatív ötletek.
+                  Ask me anything — coding, game design, web development, creative ideas.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
@@ -271,7 +268,7 @@ export function ChatArea() {
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-mono text-muted hover:text-white hover:bg-s2 border border-border hover:border-border2 transition-all"
               >
                 <StopCircle size={14} className="text-destructive" />
-                Leállítás
+                Stop
               </button>
             ) : (
               <button
@@ -279,7 +276,7 @@ export function ChatArea() {
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-mono text-muted hover:text-white hover:bg-s2 border border-border hover:border-border2 transition-all"
               >
                 <RotateCcw size={13} />
-                Újragenerálás
+                Regenerate
               </button>
             )}
           </motion.div>
@@ -295,7 +292,7 @@ export function ChatArea() {
               value={input}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
-              placeholder="Üzenet Cortex AI-nak..."
+              placeholder="Message Cortex AI..."
               disabled={isStreaming}
               className="w-full bg-transparent border-none outline-none text-foreground text-sm resize-none py-4 px-5 max-h-[180px] min-h-[56px] disabled:opacity-50"
               rows={1}
@@ -311,7 +308,7 @@ export function ChatArea() {
             </div>
           </div>
           <div className="mt-3 flex justify-between items-center px-2">
-            <span className="font-mono text-[10px] text-muted/60 tracking-wide">ENTER = küld &nbsp;·&nbsp; SHIFT+ENTER = új sor</span>
+            <span className="font-mono text-[10px] text-muted/60 tracking-wide">ENTER = send &nbsp;·&nbsp; SHIFT+ENTER = new line</span>
             <span className="font-mono text-[10px] text-muted/40">claude-sonnet-4-6</span>
           </div>
         </div>
@@ -352,7 +349,7 @@ function MessageBubble({
           <CortexAvatar size={36} />
         ) : (
           <UserAvatar
-            name={user?.name || "Felhasználó"}
+            name={user?.name || "User"}
             email={user?.email}
             size={36}
           />
@@ -363,7 +360,7 @@ function MessageBubble({
       <div className={cn("max-w-[calc(100%-3.5rem)] flex flex-col", !isAI && "items-end")}>
         <div className={cn("flex items-center gap-2 mb-1.5", !isAI && "flex-row-reverse")}>
           <span className={cn("text-xs font-mono font-semibold", isAI ? "text-primary" : "text-secondary")}>
-            {isAI ? "Cortex AI" : (user?.name || "Te")}
+            {isAI ? "Cortex AI" : (user?.name || "You")}
           </span>
           {message.createdAt && (
             <span className="text-[10px] font-mono text-muted/60">{formatDate(message.createdAt)}</span>

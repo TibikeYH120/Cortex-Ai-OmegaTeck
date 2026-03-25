@@ -11,7 +11,6 @@ export function AuthScreen() {
   const [showPass, setShowPass] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   
-  // Form state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -26,7 +25,7 @@ export function AuthScreen() {
     setErrorMsg("");
 
     if (!email || !password || (tab === "register" && !name)) {
-      setErrorMsg("Kérlek töltsd ki az összes mezőt!");
+      setErrorMsg("Please fill in all fields!");
       return;
     }
 
@@ -35,18 +34,17 @@ export function AuthScreen() {
         await loginMutation.mutateAsync({ data: { email, password } });
       } else {
         if (password.length < 6) {
-          setErrorMsg("A jelszó legalább 6 karakter kell legyen!");
+          setErrorMsg("Password must be at least 6 characters!");
           return;
         }
         await registerMutation.mutateAsync({ data: { name, email, password } });
       }
       
-      // Force refresh data to unmount auth screen
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       window.location.reload();
 
     } catch (err: any) {
-      setErrorMsg(err.message || "Hibás adatok vagy hálózati hiba.");
+      setErrorMsg(err.message || "Invalid credentials or network error.");
     }
   };
 
@@ -57,7 +55,6 @@ export function AuthScreen() {
 
   return (
     <div className="min-h-screen flex items-center justify-center relative p-4 bg-background z-10 overflow-hidden">
-      {/* Background Cyber Blobs */}
       <div className="cyber-blob bg-primary w-[50vw] h-[50vh] -top-[10%] -left-[10%]" />
       <div className="cyber-blob bg-secondary w-[50vw] h-[50vh] -bottom-[10%] -right-[10%]" />
 
@@ -81,8 +78,8 @@ export function AuthScreen() {
         </div>
 
         <div className="text-center mb-8">
-          <h2 className="text-xl font-bold text-white mb-1">Üdvözlünk vissza</h2>
-          <p className="text-sm text-muted">Lépj be a fiókodba a folytatáshoz</p>
+          <h2 className="text-xl font-bold text-white mb-1">Welcome back</h2>
+          <p className="text-sm text-muted">Sign in to your account to continue</p>
         </div>
 
         {/* Tabs */}
@@ -95,7 +92,7 @@ export function AuthScreen() {
               tab === "login" ? "bg-s2 text-white shadow-sm border border-border" : "text-muted hover:text-white/80"
             )}
           >
-            Bejelentkezés
+            Sign In
           </button>
           <button 
             type="button"
@@ -105,7 +102,7 @@ export function AuthScreen() {
               tab === "register" ? "bg-s2 text-white shadow-sm border border-border" : "text-muted hover:text-white/80"
             )}
           >
-            Regisztráció
+            Register
           </button>
         </div>
 
@@ -122,31 +119,31 @@ export function AuthScreen() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {tab === "register" && (
             <div className="space-y-1.5">
-              <label className="text-[11px] font-mono text-muted uppercase ml-1">Felhasználónév</label>
+              <label className="text-[11px] font-mono text-muted uppercase ml-1">Username</label>
               <input 
                 type="text" value={name} onChange={e => setName(e.target.value)}
-                placeholder="pl. Tibor"
+                placeholder="e.g. Alex"
                 className="w-full bg-s3 border border-border rounded-xl px-4 py-3.5 text-sm text-white placeholder:text-muted/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
               />
             </div>
           )}
 
           <div className="space-y-1.5">
-            <label className="text-[11px] font-mono text-muted uppercase ml-1">Email cím</label>
+            <label className="text-[11px] font-mono text-muted uppercase ml-1">Email address</label>
             <input 
               type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="pl. tibor@omegateck.hu"
+              placeholder="e.g. alex@omegateck.hu"
               autoComplete="email"
               className="w-full bg-s3 border border-border rounded-xl px-4 py-3.5 text-sm text-white placeholder:text-muted/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
             />
           </div>
 
           <div className="space-y-1.5 relative">
-            <label className="text-[11px] font-mono text-muted uppercase ml-1">Jelszó</label>
+            <label className="text-[11px] font-mono text-muted uppercase ml-1">Password</label>
             <div className="relative">
               <input 
                 type={showPass ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)}
-                placeholder={tab === "register" ? "Minimum 6 karakter" : "••••••••"}
+                placeholder={tab === "register" ? "Minimum 6 characters" : "••••••••"}
                 autoComplete={tab === "register" ? "new-password" : "current-password"}
                 className="w-full bg-s3 border border-border rounded-xl px-4 py-3.5 text-sm text-white placeholder:text-muted/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all pr-12"
               />
@@ -165,13 +162,13 @@ export function AuthScreen() {
             disabled={loginMutation.isPending || registerMutation.isPending}
             className="w-full py-3.5 mt-2 rounded-xl text-sm font-bold bg-gradient-to-r from-primary to-secondary text-black shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loginMutation.isPending || registerMutation.isPending ? "Kérem várjon..." : (tab === "login" ? "BELÉPÉS" : "FIÓK LÉTREHOZÁSA")}
+            {loginMutation.isPending || registerMutation.isPending ? "Please wait..." : (tab === "login" ? "SIGN IN" : "CREATE ACCOUNT")}
           </button>
         </form>
 
         <div className="flex items-center gap-4 my-6">
           <div className="h-px flex-1 bg-border" />
-          <span className="text-[11px] font-mono text-muted uppercase">vagy</span>
+          <span className="text-[11px] font-mono text-muted uppercase">or</span>
           <div className="h-px flex-1 bg-border" />
         </div>
 
@@ -180,7 +177,7 @@ export function AuthScreen() {
           onClick={handleGuest}
           className="w-full py-3.5 rounded-xl text-sm font-semibold bg-s3 border border-border text-foreground hover:bg-s2 hover:border-border2 hover:text-primary transition-all group"
         >
-          Folytatás <span className="text-muted group-hover:text-primary transition-colors">vendégként</span>
+          Continue <span className="text-muted group-hover:text-primary transition-colors">as guest</span>
         </button>
       </motion.div>
     </div>

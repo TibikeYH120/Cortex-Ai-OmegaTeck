@@ -50,7 +50,7 @@ export function Sidebar() {
 
   const handleDelete = (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
-    if (confirm("Biztosan törlöd a beszélgetést?")) {
+    if (confirm("Are you sure you want to delete this conversation?")) {
       deleteMutation.mutate({ id });
       if (activeConversationId === id) setActiveConversationId(null);
     }
@@ -103,20 +103,20 @@ export function Sidebar() {
             className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white/4 border border-white/6 text-sm font-medium hover:border-[#00d0ff]/30 hover:bg-[#00d0ff]/5 hover:text-[#00d0ff] transition-all group"
           >
             <MessageSquarePlus size={16} className="text-muted group-hover:text-[#00d0ff] transition-colors" />
-            <span>Új beszélgetés</span>
+            <span>New chat</span>
           </button>
         </div>
 
         {/* Conversation List */}
         <div className="flex-1 overflow-y-auto px-3 pb-3">
-          <div className="px-2 mb-2 text-[9px] font-mono text-muted/60 uppercase tracking-[0.2em]">Előzmények</div>
+          <div className="px-2 mb-2 text-[9px] font-mono text-muted/60 uppercase tracking-[0.2em]">History</div>
 
           {isGuest ? (
             <div className="text-center p-4 text-xs text-muted/60 bg-white/2 rounded-lg border border-white/4 mx-1">
-              Vendég módban nem mentődnek az előzmények.
+              History is not saved in guest mode.
             </div>
           ) : conversations.length === 0 ? (
-            <div className="text-center p-4 text-xs text-muted/50">Még nincs előzmény</div>
+            <div className="text-center p-4 text-xs text-muted/50">No conversations yet</div>
           ) : (
             <div className="flex flex-col gap-0.5">
               {conversations.map((conv: any) => (
@@ -136,7 +136,7 @@ export function Sidebar() {
                   <div className="flex items-center gap-2.5 overflow-hidden flex-1 min-w-0">
                     <MessageSquare size={13} className={cn("shrink-0 transition-colors", activeConversationId === conv.id ? "text-[#00d0ff]" : "text-muted/60")} />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm truncate leading-tight">{conv.title || "Új beszélgetés"}</div>
+                      <div className="text-sm truncate leading-tight">{conv.title || "New chat"}</div>
                       <div className="text-[10px] font-mono text-muted/50 mt-0.5">{formatRelativeDate(conv.createdAt)}</div>
                     </div>
                   </div>
@@ -154,18 +154,17 @@ export function Sidebar() {
 
         {/* User Footer */}
         <div className="p-3 border-t border-white/6 shrink-0">
-          {/* Profile Dropdown Trigger */}
           <div className="rounded-xl overflow-hidden bg-white/3 border border-white/5">
             <div className="flex items-center gap-3 p-3">
               <UserAvatar
-                name={user?.name || "Felhasználó"}
+                name={user?.name || "User"}
                 email={user?.email}
                 size={32}
                 className="rounded-lg"
               />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold truncate text-white">{user?.name}</div>
-                <div className="text-[10px] font-mono text-muted/60">{user?.role === "guest" ? "Vendég" : "OmegaTeck Tag"}</div>
+                <div className="text-[10px] font-mono text-muted/60">{user?.role === "guest" ? "Guest" : "OmegaTeck Member"}</div>
               </div>
             </div>
 
@@ -176,7 +175,7 @@ export function Sidebar() {
                 className="flex-1 flex items-center justify-center gap-2 py-2 text-xs text-muted/70 hover:text-white hover:bg-white/5 transition-all"
               >
                 <User size={13} />
-                Profil
+                Profile
               </button>
               <div className="w-px bg-white/4" />
               <button
@@ -184,7 +183,7 @@ export function Sidebar() {
                 className="flex-1 flex items-center justify-center gap-2 py-2 text-xs text-muted/70 hover:text-white hover:bg-white/5 transition-all"
               >
                 <Settings size={13} />
-                Beállítások
+                Settings
               </button>
               <div className="w-px bg-white/4" />
               <button
@@ -192,7 +191,7 @@ export function Sidebar() {
                 className="flex-1 flex items-center justify-center gap-2 py-2 text-xs text-muted/70 hover:text-red-400 hover:bg-red-400/10 transition-all"
               >
                 <LogOut size={13} />
-                Ki
+                Sign Out
               </button>
             </div>
           </div>
