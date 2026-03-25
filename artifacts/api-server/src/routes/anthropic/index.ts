@@ -166,6 +166,26 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
 
   const textContent = content || "";
 
+  // Validate and parse imageAttachment BEFORE any DB writes
+  const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+  let parsedAttachment: { mediaType: AllowedMediaType; base64Data: string } | null = null;
+  if (imageAttachment != null) {
+    if (typeof imageAttachment !== "string" || !imageAttachment.startsWith("data:image/")) {
+      res.status(400).json({ error: "Invalid image attachment format" });
+      return;
+    }
+    if (imageAttachment.length > MAX_ATTACHMENT_BYTES * 1.4) {
+      res.status(413).json({ error: "Image attachment too large (max 5 MB)" });
+      return;
+    }
+    const matches = imageAttachment.match(/^data:(image\/(jpeg|png|gif|webp));base64,(.+)$/);
+    if (!matches) {
+      res.status(400).json({ error: "Unsupported image type — use JPEG, PNG, GIF, or WEBP" });
+      return;
+    }
+    parsedAttachment = { mediaType: matches[1] as AllowedMediaType, base64Data: matches[3] };
+  }
+
   try {
     const [conv] = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
     if (!conv) {
@@ -184,26 +204,10 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
       content: m.content,
     }));
 
-    // Build the final user message with optional image attachment
-    const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
-    if (imageAttachment != null) {
-      if (typeof imageAttachment !== "string" || !imageAttachment.startsWith("data:image/")) {
-        res.status(400).json({ error: "Invalid image attachment format" });
-        return;
-      }
-      if (imageAttachment.length > MAX_ATTACHMENT_BYTES * 1.4) {
-        res.status(413).json({ error: "Image attachment too large (max 5 MB)" });
-        return;
-      }
-      const matches = imageAttachment.match(/^data:(image\/(jpeg|png|gif|webp));base64,(.+)$/);
-      if (!matches) {
-        res.status(400).json({ error: "Unsupported image type — use JPEG, PNG, GIF, or WEBP" });
-        return;
-      }
-      const mediaType = matches[1] as AllowedMediaType;
-      const base64Data = matches[3];
+    // Compose the final user message content
+    if (parsedAttachment) {
       const userContent: ContentBlockParam[] = [
-        { type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } },
+        { type: "image", source: { type: "base64", media_type: parsedAttachment.mediaType, data: parsedAttachment.base64Data } },
       ];
       if (textContent) {
         userContent.push({ type: "text", text: textContent });
