@@ -162,11 +162,17 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
     }));
 
     // Build the final user message with optional image
+    // Validate attachment: must be a data URL and under ~5MB base64
+    const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
     if (imageAttachment && typeof imageAttachment === "string" && imageAttachment.startsWith("data:image/")) {
-      const matches = imageAttachment.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+      if (imageAttachment.length > MAX_ATTACHMENT_BYTES * 1.4) {
+        res.status(413).json({ error: "Image attachment too large (max 5 MB)" });
+        return;
+      }
+      const matches = imageAttachment.match(/^data:(image\/(jpeg|png|gif|webp));base64,(.+)$/);
       if (matches) {
         const mediaType = matches[1] as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
-        const base64Data = matches[2];
+        const base64Data = matches[3];
         const userContent: any[] = [
           {
             type: "image",

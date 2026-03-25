@@ -71,7 +71,20 @@ export function ChatArea() {
 
   useEffect(() => {
     if (activeConversationId && activeConversation && !isStreaming && !isGeneratingImage) {
-      setLocalMessages(filterServerMessages(activeConversation.messages || []));
+      const serverMsgs = filterServerMessages(activeConversation.messages || []);
+      // Merge server messages with local state, preserving ephemeral fields (e.g. imageAttachment)
+      setLocalMessages(prev => {
+        return serverMsgs.map(serverMsg => {
+          const localMatch = prev.find(
+            m => m.id === serverMsg.id ||
+              (m.role === serverMsg.role && m.content === serverMsg.content)
+          );
+          if (localMatch?.imageAttachment) {
+            return { ...serverMsg, imageAttachment: localMatch.imageAttachment };
+          }
+          return serverMsg;
+        });
+      });
     } else if (!activeConversationId) {
       setLocalMessages([]);
     }
