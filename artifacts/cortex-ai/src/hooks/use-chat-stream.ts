@@ -100,7 +100,9 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
           setIsGeneratingImage(false);
         }
 
-        // Only refresh the sidebar list (not the conversation detail — that would overwrite the image)
+        // Only refresh the sidebar list, not the conversation detail.
+        // Refreshing the detail would overwrite local image messages with stale server data,
+        // because generated images are intentionally not persisted in the DB (they are ephemeral).
         queryClient.invalidateQueries({ queryKey: getListAnthropicConversationsQueryKey() });
         return;
       }

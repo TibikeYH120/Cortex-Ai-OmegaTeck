@@ -193,7 +193,9 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
       return;
     }
 
-    // Store only text in DB (images are ephemeral)
+    // Store only text in DB. Images are ephemeral by design: base64 payloads are too large
+    // for DB storage. Attachment/generated-image previews live only in local React state and
+    // are not restored when the conversation is reloaded from the server.
     await db.insert(messages).values({ conversationId: id, role: "user", content: textContent });
 
     const existingMessages = await db.select().from(messages).where(eq(messages.conversationId, id)).orderBy(asc(messages.createdAt));
