@@ -8,11 +8,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn, formatDate } from "@/lib/utils";
 import { UserAvatar, CortexAvatar } from "./AvatarUtils";
 
-const IMAGE_GEN_PATTERN = /\[GENERATE_IMAGE:\s*[\s\S]+?\]/;
+// Matches the full-string form Claude outputs when generating images.
+// Anchored on trimmed content so normal assistant messages that happen to mention
+// the pattern in code/prose are not accidentally filtered.
+const IMAGE_GEN_EXACT = /^\[GENERATE_IMAGE:\s*[\s\S]+?\]$/;
 
 function filterServerMessages(msgs: any[]): any[] {
   return msgs.filter(m => {
-    if (m.role === "assistant" && IMAGE_GEN_PATTERN.test(m.content)) return false;
+    if (m.role === "assistant" && IMAGE_GEN_EXACT.test((m.content ?? "").trim())) return false;
     return true;
   });
 }
@@ -614,7 +617,9 @@ function MessageBubble({
                   )}
                 </>
               ) : (
-                message.content
+                message.content || (
+                  <span className="text-muted/40 italic text-xs font-mono">[image]</span>
+                )
               )}
             </div>
           )}
