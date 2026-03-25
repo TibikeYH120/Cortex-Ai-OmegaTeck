@@ -72,13 +72,21 @@ export function ChatArea() {
   useEffect(() => {
     if (activeConversationId && activeConversation && !isStreaming && !isGeneratingImage) {
       const serverMsgs = filterServerMessages(activeConversation.messages || []);
-      // Merge server messages with local state, preserving ephemeral fields (e.g. imageAttachment)
+      // Merge server messages with local state, preserving ephemeral fields (e.g. imageAttachment).
+      // Strategy: match by DB id first, then by role + content + timestamp proximity (≤10s).
+      // Timestamp proximity reduces false matches for repeated identical-content messages.
       setLocalMessages(prev => {
+        const usedLocalIds = new Set<number | string>();
         return serverMsgs.map(serverMsg => {
-          const localMatch = prev.find(
-            m => m.id === serverMsg.id ||
-              (m.role === serverMsg.role && m.content === serverMsg.content)
-          );
+          const serverTime = new Date(serverMsg.createdAt).getTime();
+          const localMatch = prev.find(m => {
+            if (usedLocalIds.has(m.id)) return false;
+            if (m.id === serverMsg.id) return true;
+            if (m.role !== serverMsg.role || m.content !== serverMsg.content) return false;
+            const localTime = new Date(m.createdAt).getTime();
+            return Math.abs(serverTime - localTime) < 10_000;
+          });
+          if (localMatch) usedLocalIds.add(localMatch.id);
           if (localMatch?.imageAttachment) {
             return { ...serverMsg, imageAttachment: localMatch.imageAttachment };
           }
