@@ -90,7 +90,8 @@ export function ChatArea() {
       // usedLocalIds prevents the same local attachment binding to multiple server messages.
       setLocalMessages(prev => {
         const usedLocalIds = new Set<number | string>();
-        return serverMsgs.map(serverMsg => {
+        // 1. Map each server message, preserving ephemeral imageAttachment from local state.
+        const merged = serverMsgs.map(serverMsg => {
           const serverTime = new Date(serverMsg.createdAt).getTime();
           const localMatch = prev.find(m => {
             if (usedLocalIds.has(m.id)) return false;
@@ -105,6 +106,23 @@ export function ChatArea() {
           }
           return serverMsg;
         });
+
+        // 2. Re-inject local assistant image messages (type:"image") that have no DB counterpart.
+        // These are ephemeral generated images — not persisted — but should survive within-session syncs.
+        const ephemeralImages = prev.filter(m =>
+          !usedLocalIds.has(m.id) && m.role === "assistant" && (m as any).type === "image"
+        );
+        if (ephemeralImages.length === 0) return merged;
+
+        // Insert each ephemeral image after the last server message that has an earlier timestamp.
+        const result = [...merged];
+        for (const img of ephemeralImages) {
+          const imgTime = new Date(img.createdAt).getTime();
+          let insertIdx = result.findIndex(m => new Date(m.createdAt).getTime() > imgTime);
+          if (insertIdx === -1) insertIdx = result.length;
+          result.splice(insertIdx, 0, img);
+        }
+        return result;
       });
     } else if (!activeConversationId) {
       setLocalMessages([]);
