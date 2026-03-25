@@ -150,7 +150,7 @@ export function ChatArea() {
   const showWelcome = !activeConversationId && localMessages.length === 0;
 
   return (
-    <main className="flex-1 flex flex-col h-screen relative bg-black/40 backdrop-blur-[2px] overflow-hidden">
+    <main className="flex-1 flex flex-col h-[100dvh] relative bg-black/40 backdrop-blur-[2px] overflow-hidden">
       {/* Top Bar */}
       <header className="h-16 border-b border-border bg-black/50 backdrop-blur-md flex items-center justify-between px-4 lg:px-8 shrink-0 relative z-10">
         <div className="flex items-center gap-4">
@@ -284,7 +284,7 @@ export function ChatArea() {
       </AnimatePresence>
 
       {/* Input Area */}
-      <div className="p-4 lg:p-6 border-t border-border bg-black/60 backdrop-blur-xl shrink-0 z-10">
+      <div className="p-4 lg:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-border bg-black/60 backdrop-blur-xl shrink-0 z-10">
         <div className="max-w-3xl mx-auto">
           <div className="relative flex items-end bg-s2 border border-border rounded-2xl overflow-hidden focus-within:border-border2 focus-within:shadow-[0_0_0_3px_rgba(0,208,255,0.05),_0_0_20px_rgba(0,208,255,0.08)] transition-all">
             <textarea
@@ -307,7 +307,7 @@ export function ChatArea() {
               </button>
             </div>
           </div>
-          <div className="mt-3 flex justify-between items-center px-2">
+          <div className="mt-2 hidden sm:flex justify-between items-center px-2">
             <span className="font-mono text-[10px] text-muted/60 tracking-wide">ENTER = send &nbsp;·&nbsp; SHIFT+ENTER = new line</span>
             <span className="font-mono text-[10px] text-muted/40">claude-sonnet-4-6</span>
           </div>
