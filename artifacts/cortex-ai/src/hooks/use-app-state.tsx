@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { createContext, useContext, useState, ReactNode } from "react";
 import { useGetMe, AuthUser } from "@workspace/api-client-react";
 
 interface AppState {
@@ -19,11 +19,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const { data: user, isLoading: isAuthLoading, error } = useGetMe({
+  const { data: user, isLoading: isAuthLoading } = useGetMe({
     query: {
       retry: false,
-      enabled: !isGuest, // Don't fetch if in guest mode
-      staleTime: Infinity
+      enabled: !isGuest,
+      staleTime: 2 * 60 * 1000, // 2 minutes — refreshes when profile is saved
+      gcTime: 5 * 60 * 1000,
     }
   });
 
@@ -38,7 +39,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const contextValue: AppState = {
     isGuest,
-    user: isGuest ? { id: 0, name: "Vendég", email: "guest@cortex.ai", role: "guest", createdAt: new Date().toISOString() } : (user || null),
+    user: isGuest
+      ? { id: 0, name: "Vendég", email: "guest@cortex.ai", role: "guest", createdAt: new Date().toISOString() }
+      : (user || null),
     isAuthLoading,
     activeConversationId,
     sidebarOpen,

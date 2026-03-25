@@ -4,7 +4,7 @@ import { getGetAnthropicConversationQueryKey, getListAnthropicConversationsQuery
 
 interface UseChatStreamProps {
   conversationId: number | null;
-  onFinished?: () => void;
+  onFinished?: (fullContent: string) => void;
   onError?: (err: string) => void;
 }
 
@@ -23,13 +23,15 @@ export function useChatStream({ conversationId, onFinished, onError }: UseChatSt
 
     setIsStreaming(true);
     setStreamingContent("");
-    
+    let fullText = "";
+
     abortControllerRef.current = new AbortController();
 
     try {
       const response = await fetch(`/api/anthropic/conversations/${targetId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ content }),
         signal: abortControllerRef.current.signal,
       });
@@ -57,14 +59,13 @@ export function useChatStream({ conversationId, onFinished, onError }: UseChatSt
             try {
               const dataStr = line.replace("data: ", "").trim();
               if (!dataStr) continue;
-              
+
               const data = JSON.parse(dataStr);
-              
-              if (data.done) {
-                break;
-              }
+
+              if (data.done) break;
               if (data.content) {
-                setStreamingContent((prev) => prev + data.content);
+                fullText += data.content;
+                setStreamingContent(fullText);
               }
             } catch (err) {
               console.error("SSE parse error", err, line);
@@ -72,11 +73,14 @@ export function useChatStream({ conversationId, onFinished, onError }: UseChatSt
           }
         }
       }
-      
-      // Refresh queries to sync persistent state
+
+      // Notify parent with full content BEFORE clearing streaming state
+      onFinished?.(fullText);
+
+      // Refresh queries to sync persistent state from server
       queryClient.invalidateQueries({ queryKey: getGetAnthropicConversationQueryKey(targetId) });
       queryClient.invalidateQueries({ queryKey: getListAnthropicConversationsQueryKey() });
-      
+
     } catch (err: any) {
       if (err.name !== "AbortError") {
         console.error("Stream error:", err);
@@ -84,7 +88,7 @@ export function useChatStream({ conversationId, onFinished, onError }: UseChatSt
       }
     } finally {
       setIsStreaming(false);
-      onFinished?.();
+      setStreamingContent("");
     }
   };
 
@@ -92,11 +96,10 @@ export function useChatStream({ conversationId, onFinished, onError }: UseChatSt
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       setIsStreaming(false);
-      onFinished?.();
+      setStreamingContent("");
     }
   };
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {

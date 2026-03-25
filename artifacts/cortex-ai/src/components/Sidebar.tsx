@@ -7,7 +7,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { MessageSquarePlus, MessageSquare, Trash2, LogOut, Settings, User, ChevronLeft, Menu } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatRelativeDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { ProfileModal } from "./Modals";
 import { SettingsModal } from "./Modals";
@@ -142,15 +142,18 @@ export function Sidebar() {
                       : "bg-transparent border-transparent hover:bg-s2 hover:border-border text-foreground/80 hover:text-foreground"
                   )}
                 >
-                  <div className="flex items-center gap-3 overflow-hidden">
-                    <MessageSquare size={14} className={activeConversationId === conv.id ? "text-primary" : "text-muted group-hover:text-foreground/70"} />
-                    <span className="text-sm truncate select-none">{conv.title || "Új beszélgetés"}</span>
+                  <div className="flex items-center gap-2.5 overflow-hidden flex-1 min-w-0">
+                    <MessageSquare size={13} className={cn("shrink-0", activeConversationId === conv.id ? "text-primary" : "text-muted group-hover:text-foreground/70")} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm truncate select-none leading-tight">{conv.title || "Új beszélgetés"}</div>
+                      <div className="text-[10px] font-mono text-muted/60 mt-0.5">{formatRelativeDate(conv.createdAt)}</div>
+                    </div>
                   </div>
-                  <button 
+                  <button
                     onClick={(e) => handleDelete(e, conv.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 text-muted hover:text-destructive hover:bg-destructive/10 rounded-md transition-all"
+                    className="shrink-0 opacity-0 group-hover:opacity-100 p-1.5 text-muted hover:text-destructive hover:bg-destructive/10 rounded-md transition-all"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={13} />
                   </button>
                 </div>
               ))}

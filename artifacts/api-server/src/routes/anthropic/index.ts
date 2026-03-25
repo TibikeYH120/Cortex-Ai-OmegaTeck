@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { conversations, messages } from "@workspace/db";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, desc } from "drizzle-orm";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 
 const router: IRouter = Router();
@@ -19,7 +19,7 @@ Személyiség:
 
 router.get("/conversations", async (req: Request, res: Response) => {
   try {
-    const rows = await db.select().from(conversations).orderBy(conversations.createdAt);
+    const rows = await db.select().from(conversations).orderBy(desc(conversations.createdAt));
     res.json(rows.map(c => ({
       id: c.id,
       title: c.title,
