@@ -28,6 +28,7 @@ export function ChatArea() {
   const [lastUserMessage, setLastUserMessage] = useState<string>("");
   const [imageAttachment, setImageAttachment] = useState<string | null>(null);
   const [imageAttachmentName, setImageAttachmentName] = useState<string>("");
+  const isGeneratingImageRef = useRef(false);
 
   const { data: activeConversation } = useGetAnthropicConversation(activeConversationId!, {
     query: { enabled: !!activeConversationId && !isGuest }
@@ -69,12 +70,21 @@ export function ChatArea() {
     }
   });
 
+  // Keep ref in sync without adding isGeneratingImage to the server-sync effect dependencies.
+  // This prevents the sync effect from re-triggering when image generation finishes,
+  // which would overwrite the just-added local image message with stale server data.
   useEffect(() => {
-    if (activeConversationId && activeConversation && !isStreaming && !isGeneratingImage) {
+    isGeneratingImageRef.current = isGeneratingImage;
+  }, [isGeneratingImage]);
+
+  useEffect(() => {
+    if (activeConversationId && activeConversation && !isStreaming) {
+      // Skip sync while image generation is in progress (ref avoids effect re-trigger on change)
+      if (isGeneratingImageRef.current) return;
       const serverMsgs = filterServerMessages(activeConversation.messages || []);
       // Merge server messages with local state, preserving ephemeral fields (e.g. imageAttachment).
       // Strategy: match by DB id first, then by role + content + timestamp proximity (≤10s).
-      // Timestamp proximity reduces false matches for repeated identical-content messages.
+      // usedLocalIds prevents the same local attachment binding to multiple server messages.
       setLocalMessages(prev => {
         const usedLocalIds = new Set<number | string>();
         return serverMsgs.map(serverMsg => {
@@ -96,7 +106,7 @@ export function ChatArea() {
     } else if (!activeConversationId) {
       setLocalMessages([]);
     }
-  }, [activeConversation, activeConversationId, isStreaming, isGeneratingImage]);
+  }, [activeConversation, activeConversationId, isStreaming]);
 
   const scrollToBottom = (smooth = true) => {
     messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
