@@ -136,6 +136,7 @@ export function AuthScreen() {
             <input 
               type="email" value={email} onChange={e => setEmail(e.target.value)}
               placeholder="pl. tibor@omegateck.hu"
+              autoComplete="email"
               className="w-full bg-s3 border border-border rounded-xl px-4 py-3.5 text-sm text-white placeholder:text-muted/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
             />
           </div>
@@ -146,6 +147,7 @@ export function AuthScreen() {
               <input 
                 type={showPass ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)}
                 placeholder={tab === "register" ? "Minimum 6 karakter" : "••••••••"}
+                autoComplete={tab === "register" ? "new-password" : "current-password"}
                 className="w-full bg-s3 border border-border rounded-xl px-4 py-3.5 text-sm text-white placeholder:text-muted/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all pr-12"
               />
               <button 
