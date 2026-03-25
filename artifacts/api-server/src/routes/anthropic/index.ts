@@ -135,11 +135,13 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
     res.status(400).json({ error: "Invalid ID" });
     return;
   }
-  const { content } = req.body;
-  if (!content) {
+  const { content, imageAttachment } = req.body;
+  if (!content && !imageAttachment) {
     res.status(400).json({ error: "Message content is required" });
     return;
   }
+
+  const textContent = content || "";
 
   try {
     const [conv] = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
@@ -148,13 +150,39 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
       return;
     }
 
-    await db.insert(messages).values({ conversationId: id, role: "user", content });
+    // Store only text in DB (images are ephemeral)
+    await db.insert(messages).values({ conversationId: id, role: "user", content: textContent });
 
     const existingMessages = await db.select().from(messages).where(eq(messages.conversationId, id)).orderBy(asc(messages.createdAt));
-    const chatMessages = existingMessages.map(m => ({
+
+    // Build chat messages — all previous as text, the last user message may include an image
+    const chatMessages: any[] = existingMessages.slice(0, -1).map(m => ({
       role: m.role as "user" | "assistant",
       content: m.content,
     }));
+
+    // Build the final user message with optional image
+    if (imageAttachment && typeof imageAttachment === "string" && imageAttachment.startsWith("data:image/")) {
+      const matches = imageAttachment.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+      if (matches) {
+        const mediaType = matches[1] as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+        const base64Data = matches[2];
+        const userContent: any[] = [
+          {
+            type: "image",
+            source: { type: "base64", media_type: mediaType, data: base64Data },
+          },
+        ];
+        if (textContent) {
+          userContent.push({ type: "text", text: textContent });
+        }
+        chatMessages.push({ role: "user", content: userContent });
+      } else {
+        chatMessages.push({ role: "user", content: textContent });
+      }
+    } else {
+      chatMessages.push({ role: "user", content: textContent });
+    }
 
     // SSE headers — X-Accel-Buffering disables nginx proxy buffering
     res.setHeader("Content-Type", "text/event-stream");

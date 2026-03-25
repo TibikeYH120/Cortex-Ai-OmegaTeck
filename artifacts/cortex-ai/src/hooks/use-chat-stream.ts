@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetAnthropicConversationQueryKey, getListAnthropicConversationsQueryKey } from "@workspace/api-client-react";
 
-const IMAGE_PATTERN = /^\[GENERATE_IMAGE:\s*([\s\S]+?)\]$/;
+const IMAGE_PATTERN = /\[GENERATE_IMAGE:\s*([\s\S]+?)\]/;
 
 interface UseChatStreamProps {
   conversationId: number | null;
@@ -18,7 +18,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
   const queryClient = useQueryClient();
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const sendMessage = async (content: string, overrideConvId?: number) => {
+  const sendMessage = async (content: string, overrideConvId?: number, imageAttachment?: string) => {
     const targetId = overrideConvId || conversationId;
     if (!targetId) {
       onError?.("No active conversation.");
@@ -36,7 +36,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, imageAttachment }),
         signal: abortControllerRef.current.signal,
       });
 
@@ -74,12 +74,13 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
         }
       }
 
+      setIsStreaming(false);
+      setStreamingContent("");
+
       // Check if Claude wants to generate an image
-      const imageMatch = fullText.trim().match(IMAGE_PATTERN);
+      const imageMatch = fullText.match(IMAGE_PATTERN);
       if (imageMatch) {
         const imagePrompt = imageMatch[1].trim();
-        setIsStreaming(false);
-        setStreamingContent("");
         setIsGeneratingImage(true);
 
         try {
@@ -99,7 +100,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
           setIsGeneratingImage(false);
         }
 
-        queryClient.invalidateQueries({ queryKey: getGetAnthropicConversationQueryKey(targetId) });
+        // Only refresh the sidebar list (not the conversation detail — that would overwrite the image)
         queryClient.invalidateQueries({ queryKey: getListAnthropicConversationsQueryKey() });
         return;
       }

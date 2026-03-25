@@ -3,19 +3,31 @@ import { useAppState } from "@/hooks/use-app-state";
 import { useCreateAnthropicConversation, useGetAnthropicConversation } from "@workspace/api-client-react";
 import { useChatStream } from "@/hooks/use-chat-stream";
 import { MarkdownRenderer } from "./MarkdownRenderer";
-import { Send, Menu, Plus, StopCircle, Copy, Check, RotateCcw } from "lucide-react";
+import { Send, Menu, Plus, StopCircle, Copy, Check, RotateCcw, Paperclip, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn, formatDate } from "@/lib/utils";
 import { UserAvatar, CortexAvatar } from "./AvatarUtils";
+
+const IMAGE_GEN_PATTERN = /\[GENERATE_IMAGE:\s*[\s\S]+?\]/;
+
+function filterServerMessages(msgs: any[]): any[] {
+  return msgs.filter(m => {
+    if (m.role === "assistant" && IMAGE_GEN_PATTERN.test(m.content)) return false;
+    return true;
+  });
+}
 
 export function ChatArea() {
   const { user, isGuest, activeConversationId, setActiveConversationId, setSidebarOpen } = useAppState();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [localMessages, setLocalMessages] = useState<any[]>([]);
   const [lastUserMessage, setLastUserMessage] = useState<string>("");
+  const [imageAttachment, setImageAttachment] = useState<string | null>(null);
+  const [imageAttachmentName, setImageAttachmentName] = useState<string>("");
 
   const { data: activeConversation } = useGetAnthropicConversation(activeConversationId!, {
     query: { enabled: !!activeConversationId && !isGuest }
@@ -58,12 +70,12 @@ export function ChatArea() {
   });
 
   useEffect(() => {
-    if (activeConversationId && activeConversation && !isStreaming) {
-      setLocalMessages(activeConversation.messages || []);
+    if (activeConversationId && activeConversation && !isStreaming && !isGeneratingImage) {
+      setLocalMessages(filterServerMessages(activeConversation.messages || []));
     } else if (!activeConversationId) {
       setLocalMessages([]);
     }
-  }, [activeConversation, activeConversationId, isStreaming]);
+  }, [activeConversation, activeConversationId, isStreaming, isGeneratingImage]);
 
   const scrollToBottom = (smooth = true) => {
     messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
@@ -73,14 +85,34 @@ export function ChatArea() {
     scrollToBottom();
   }, [localMessages, streamingContent]);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setImageAttachment(ev.target?.result as string);
+      setImageAttachmentName(file.name);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const clearAttachment = () => {
+    setImageAttachment(null);
+    setImageAttachmentName("");
+  };
+
   const handleSend = async (overrideContent?: string) => {
     const content = (overrideContent || input).trim();
-    if (!content || isStreaming || isGeneratingImage) return;
+    if ((!content && !imageAttachment) || isStreaming || isGeneratingImage) return;
 
     if (!overrideContent) {
       setInput("");
       if (textareaRef.current) textareaRef.current.style.height = "auto";
     }
+
+    const attachmentToSend = imageAttachment;
+    clearAttachment();
 
     setLastUserMessage(content);
 
@@ -88,6 +120,7 @@ export function ChatArea() {
       id: Date.now(),
       role: "user",
       content,
+      imageAttachment: attachmentToSend,
       createdAt: new Date().toISOString()
     };
     setLocalMessages(prev => [...prev, tempUserMsg]);
@@ -100,9 +133,8 @@ export function ChatArea() {
           targetConvId = Date.now();
           setActiveConversationId(targetConvId);
         } else {
-          const newConv = await createMutation.mutateAsync({
-            data: { title: content.length > 50 ? content.slice(0, 50) + "..." : content }
-          });
+          const title = content.length > 50 ? content.slice(0, 50) + "..." : content || "Image conversation";
+          const newConv = await createMutation.mutateAsync({ data: { title } });
           targetConvId = newConv.id;
           setActiveConversationId(targetConvId);
         }
@@ -120,7 +152,7 @@ export function ChatArea() {
         return;
       }
 
-      await sendMessage(content, targetConvId);
+      await sendMessage(content, targetConvId, attachmentToSend || undefined);
 
     } catch (err: any) {
       console.error(err);
@@ -306,7 +338,57 @@ export function ChatArea() {
       {/* Input Area */}
       <div className="p-4 lg:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-border bg-black/60 backdrop-blur-xl shrink-0 z-10">
         <div className="max-w-3xl mx-auto">
+
+          {/* Image attachment preview */}
+          <AnimatePresence>
+            {imageAttachment && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                animate={{ opacity: 1, height: "auto", marginBottom: 8 }}
+                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="flex items-center gap-3 p-2 bg-s2 border border-border rounded-xl">
+                  <img
+                    src={imageAttachment}
+                    alt="attachment"
+                    className="w-14 h-14 object-cover rounded-lg border border-border shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-mono text-[10px] text-primary tracking-widest uppercase mb-0.5">Image attached</div>
+                    <div className="text-xs text-muted truncate">{imageAttachmentName}</div>
+                  </div>
+                  <button
+                    onClick={clearAttachment}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-muted hover:text-white hover:bg-white/10 transition-all shrink-0"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div className="relative flex items-end bg-s2 border border-border rounded-2xl overflow-hidden focus-within:border-border2 focus-within:shadow-[0_0_0_3px_rgba(0,208,255,0.05),_0_0_20px_rgba(0,208,255,0.08)] transition-all">
+            {/* Paperclip button */}
+            <div className="p-2 pl-3 shrink-0">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isStreaming || isGeneratingImage}
+                title="Attach image"
+                className="w-9 h-9 flex items-center justify-center rounded-xl text-muted hover:text-primary hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Paperclip size={18} />
+              </button>
+            </div>
+
             <textarea
               ref={textareaRef}
               value={input}
@@ -314,13 +396,13 @@ export function ChatArea() {
               onKeyDown={handleKeyDown}
               placeholder="Message Cortex AI..."
               disabled={isStreaming}
-              className="w-full bg-transparent border-none outline-none text-foreground text-sm resize-none py-4 px-5 max-h-[180px] min-h-[56px] disabled:opacity-50"
+              className="w-full bg-transparent border-none outline-none text-foreground text-sm resize-none py-4 px-2 max-h-[180px] min-h-[56px] disabled:opacity-50"
               rows={1}
             />
             <div className="p-2 shrink-0">
               <button
                 onClick={() => handleSend()}
-                disabled={!input.trim() || isStreaming || isGeneratingImage}
+                disabled={(!input.trim() && !imageAttachment) || isStreaming || isGeneratingImage}
                 className="w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary text-black shadow-[0_0_14px_rgba(0,208,255,0.3)] hover:shadow-[0_0_22px_rgba(0,208,255,0.5)] hover:-translate-y-px transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
               >
                 <Send size={18} className="mr-0.5 mt-0.5" />
@@ -397,6 +479,18 @@ function MessageBubble({
             </button>
           )}
         </div>
+
+        {/* User image attachment */}
+        {!isAI && message.imageAttachment && (
+          <div className="mb-2">
+            <img
+              src={message.imageAttachment}
+              alt="attachment"
+              className="max-w-[280px] max-h-[200px] object-cover rounded-xl border border-secondary/20 cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={() => window.open(message.imageAttachment, "_blank")}
+            />
+          </div>
+        )}
 
         <div className={cn(
           "px-5 py-4 text-sm leading-relaxed relative",
