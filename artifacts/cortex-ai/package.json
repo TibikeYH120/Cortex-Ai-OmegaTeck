@@ -44,6 +44,7 @@
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "catalog:",
     "@tanstack/react-query": "catalog:",
+    "@types/babel__standalone": "^7.1.9",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
@@ -75,6 +76,7 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "@babel/standalone": "^7.29.2",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1"
   }
