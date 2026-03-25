@@ -23,7 +23,7 @@ export function ChatArea() {
 
   const createMutation = useCreateAnthropicConversation();
 
-  const { sendMessage, isStreaming, streamingContent, stopStream } = useChatStream({
+  const { sendMessage, isStreaming, streamingContent, stopStream, isGeneratingImage } = useChatStream({
     conversationId: activeConversationId,
     onFinished: (fullContent) => {
       if (fullContent) {
@@ -34,6 +34,17 @@ export function ChatArea() {
           createdAt: new Date().toISOString()
         }]);
       }
+      setTimeout(() => textareaRef.current?.focus(), 100);
+    },
+    onImageGenerated: (imageData, prompt) => {
+      setLocalMessages(prev => [...prev, {
+        id: Date.now(),
+        role: "assistant",
+        content: prompt,
+        type: "image",
+        imageData,
+        createdAt: new Date().toISOString()
+      }]);
       setTimeout(() => textareaRef.current?.focus(), 100);
     },
     onError: (err) => {
@@ -64,7 +75,7 @@ export function ChatArea() {
 
   const handleSend = async (overrideContent?: string) => {
     const content = (overrideContent || input).trim();
-    if (!content || isStreaming) return;
+    if (!content || isStreaming || isGeneratingImage) return;
 
     if (!overrideContent) {
       setInput("");
@@ -245,6 +256,15 @@ export function ChatArea() {
                     isStreaming
                   />
                 )}
+
+                {isGeneratingImage && (
+                  <MessageBubble
+                    message={{ role: "assistant", content: "", createdAt: new Date().toISOString() }}
+                    user={user}
+                    isGeneratingImage
+                  />
+                )}
+
                 <div ref={messagesEndRef} className="h-4" />
               </motion.div>
             )}
@@ -300,7 +320,7 @@ export function ChatArea() {
             <div className="p-2 shrink-0">
               <button
                 onClick={() => handleSend()}
-                disabled={!input.trim() || isStreaming}
+                disabled={!input.trim() || isStreaming || isGeneratingImage}
                 className="w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary text-black shadow-[0_0_14px_rgba(0,208,255,0.3)] hover:shadow-[0_0_22px_rgba(0,208,255,0.5)] hover:-translate-y-px transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
               >
                 <Send size={18} className="mr-0.5 mt-0.5" />
@@ -321,15 +341,18 @@ function MessageBubble({
   message,
   user,
   isTyping = false,
-  isStreaming = false
+  isStreaming = false,
+  isGeneratingImage = false,
 }: {
   message: any;
   user: any;
   isTyping?: boolean;
   isStreaming?: boolean;
+  isGeneratingImage?: boolean;
 }) {
   const isAI = message.role === "assistant";
   const [copied, setCopied] = useState(false);
+  const [imgExpanded, setImgExpanded] = useState(false);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content);
@@ -365,7 +388,7 @@ function MessageBubble({
           {message.createdAt && (
             <span className="text-[10px] font-mono text-muted/60">{formatDate(message.createdAt)}</span>
           )}
-          {isAI && !isTyping && message.content && (
+          {isAI && !isTyping && !isGeneratingImage && message.content && (
             <button
               onClick={handleCopy}
               className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[10px] font-mono text-muted hover:text-white transition-all"
@@ -381,11 +404,59 @@ function MessageBubble({
             ? "bg-s2 border border-border rounded-2xl rounded-tl-sm text-foreground min-w-[60px]"
             : "bg-gradient-to-br from-primary/5 to-secondary/5 border border-secondary/20 rounded-2xl rounded-tr-sm text-right"
         )}>
-          {isTyping ? (
+          {isGeneratingImage ? (
+            <div className="flex flex-col gap-3 py-1 min-w-[200px]">
+              <div className="flex items-center gap-3">
+                <div className="relative w-8 h-8 shrink-0">
+                  <div className="absolute inset-0 rounded-lg border-2 border-[#00d0ff]/30 animate-ping" />
+                  <div className="absolute inset-0 rounded-lg border-2 border-t-[#00d0ff] border-[#00d0ff]/10 animate-spin" />
+                  <div className="absolute inset-[6px] rounded bg-[#00d0ff]/20" />
+                </div>
+                <div>
+                  <div className="font-mono text-[11px] text-primary tracking-widest uppercase">Generating image...</div>
+                  <div className="text-[10px] text-muted/50 font-mono mt-0.5">Gemini Vision AI</div>
+                </div>
+              </div>
+              <div className="h-px bg-gradient-to-r from-[#00d0ff]/30 via-[#6c3bff]/30 to-transparent animate-pulse" />
+            </div>
+          ) : isTyping ? (
             <div className="flex gap-1.5 items-center py-1">
               <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
               <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
               <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+            </div>
+          ) : message.type === "image" && message.imageData ? (
+            <div className="flex flex-col gap-3">
+              <div className="font-mono text-[10px] text-primary/70 uppercase tracking-widest flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00d0ff] shadow-[0_0_8px_#00d0ff]" />
+                Generated image
+              </div>
+              <div
+                className="relative rounded-xl overflow-hidden border border-white/10 cursor-pointer group/img"
+                onClick={() => setImgExpanded(!imgExpanded)}
+              >
+                <img
+                  src={message.imageData}
+                  alt={message.content}
+                  className={cn(
+                    "w-full object-cover transition-all duration-300",
+                    imgExpanded ? "max-h-[600px]" : "max-h-[280px]"
+                  )}
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/20 transition-all flex items-center justify-center">
+                  <span className="opacity-0 group-hover/img:opacity-100 text-white font-mono text-[10px] bg-black/60 px-3 py-1 rounded-full transition-all">
+                    {imgExpanded ? "Collapse" : "Expand"}
+                  </span>
+                </div>
+              </div>
+              <p className="text-[11px] text-muted/60 font-mono italic leading-relaxed">{message.content}</p>
+              <a
+                href={message.imageData}
+                download="cortex-ai-image.png"
+                className="self-start flex items-center gap-1.5 text-[10px] font-mono text-muted/50 hover:text-primary transition-colors"
+              >
+                ↓ Download
+              </a>
             </div>
           ) : (
             <div className={cn(!isAI && "whitespace-pre-wrap")}>

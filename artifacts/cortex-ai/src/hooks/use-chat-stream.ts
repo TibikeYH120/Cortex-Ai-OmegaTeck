@@ -2,22 +2,26 @@ import { useState, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetAnthropicConversationQueryKey, getListAnthropicConversationsQueryKey } from "@workspace/api-client-react";
 
+const IMAGE_PATTERN = /^\[GENERATE_IMAGE:\s*([\s\S]+?)\]$/;
+
 interface UseChatStreamProps {
   conversationId: number | null;
   onFinished?: (fullContent: string) => void;
+  onImageGenerated?: (imageData: string, prompt: string) => void;
   onError?: (err: string) => void;
 }
 
-export function useChatStream({ conversationId, onFinished, onError }: UseChatStreamProps) {
+export function useChatStream({ conversationId, onFinished, onImageGenerated, onError }: UseChatStreamProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const queryClient = useQueryClient();
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const sendMessage = async (content: string, overrideConvId?: number) => {
     const targetId = overrideConvId || conversationId;
     if (!targetId) {
-      onError?.("Nincs aktív beszélgetés.");
+      onError?.("No active conversation.");
       return;
     }
 
@@ -36,11 +40,8 @@ export function useChatStream({ conversationId, onFinished, onError }: UseChatSt
         signal: abortControllerRef.current.signal,
       });
 
-      if (!response.ok) {
-        throw new Error("Hálózati hiba történt a küldés során.");
-      }
-
-      if (!response.body) throw new Error("Üres válasz a szervertől.");
+      if (!response.ok) throw new Error("Network error while sending message.");
+      if (!response.body) throw new Error("Empty response from server.");
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -61,7 +62,6 @@ export function useChatStream({ conversationId, onFinished, onError }: UseChatSt
               if (!dataStr) continue;
 
               const data = JSON.parse(dataStr);
-
               if (data.done) break;
               if (data.content) {
                 fullText += data.content;
@@ -74,17 +74,45 @@ export function useChatStream({ conversationId, onFinished, onError }: UseChatSt
         }
       }
 
-      // Notify parent with full content BEFORE clearing streaming state
+      // Check if Claude wants to generate an image
+      const imageMatch = fullText.trim().match(IMAGE_PATTERN);
+      if (imageMatch) {
+        const imagePrompt = imageMatch[1].trim();
+        setIsStreaming(false);
+        setStreamingContent("");
+        setIsGeneratingImage(true);
+
+        try {
+          const imgRes = await fetch("/api/image/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ prompt: imagePrompt }),
+          });
+
+          if (!imgRes.ok) throw new Error("Image generation failed");
+          const { imageData } = await imgRes.json();
+          onImageGenerated?.(imageData, imagePrompt);
+        } catch (imgErr: any) {
+          onError?.("Image generation failed: " + imgErr.message);
+        } finally {
+          setIsGeneratingImage(false);
+        }
+
+        queryClient.invalidateQueries({ queryKey: getGetAnthropicConversationQueryKey(targetId) });
+        queryClient.invalidateQueries({ queryKey: getListAnthropicConversationsQueryKey() });
+        return;
+      }
+
       onFinished?.(fullText);
 
-      // Refresh queries to sync persistent state from server
       queryClient.invalidateQueries({ queryKey: getGetAnthropicConversationQueryKey(targetId) });
       queryClient.invalidateQueries({ queryKey: getListAnthropicConversationsQueryKey() });
 
     } catch (err: any) {
       if (err.name !== "AbortError") {
         console.error("Stream error:", err);
-        onError?.(err.message || "Hiba a generálás során.");
+        onError?.(err.message || "Error during generation.");
       }
     } finally {
       setIsStreaming(false);
@@ -108,5 +136,5 @@ export function useChatStream({ conversationId, onFinished, onError }: UseChatSt
     };
   }, []);
 
-  return { sendMessage, isStreaming, streamingContent, stopStream };
+  return { sendMessage, isStreaming, streamingContent, stopStream, isGeneratingImage };
 }
