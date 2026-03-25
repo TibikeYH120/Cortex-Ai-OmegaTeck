@@ -1,0 +1,13 @@
+packages:
+  "framer-motion": "Smooth page transitions and animated UI elements"
+  "react-markdown": "Rendering markdown content in AI messages"
+  "remark-gfm": "GitHub Flavored Markdown support for tables and lists"
+  "lucide-react": "Clean, consistent icons for the interface"
+  "clsx": "Utility for constructing CSS class strings conditionally"
+  "tailwind-merge": "Utility for merging tailwind classes safely"
+  "date-fns": "Human-readable date formatting for chat history"
+
+notes:
+  - "App uses a strictly custom dark cyberpunk theme defined in CSS variables."
+  - "Uses generated React Query hooks from @workspace/api-client-react."
+  - "Custom SSE fetch implementation for chat streaming since Orval doesn't support EventSource mutations."

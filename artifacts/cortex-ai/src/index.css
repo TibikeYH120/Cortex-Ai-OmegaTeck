@@ -1,0 +1,123 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Syne:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-destructive: hsl(var(--destructive));
+  --color-muted: hsl(var(--muted));
+  --color-border: hsl(var(--border));
+  
+  /* Cyberpunk specifics */
+  --color-border2: hsl(var(--border2));
+  --color-s2: hsl(var(--s2));
+  --color-s3: hsl(var(--s3));
+
+  --font-display: 'Orbitron', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'Syne', sans-serif;
+}
+
+:root {
+  /* Dark Cyberpunk Theme Palette */
+  --background: 240 54% 2%;        /* #03030a */
+  --foreground: 228 100% 93%;      /* #dde4ff */
+  --primary: 191 100% 50%;         /* #00d0ff - Cyan */
+  --primary-foreground: 240 54% 2%;
+  --secondary: 259 100% 68%;       /* #6c3bff - Purple */
+  --secondary-foreground: 228 100% 93%;
+  --accent: 191 100% 50%;
+  --destructive: 337 100% 59%;     /* #ff2e7e - Pink/Red */
+  --muted: 236 24% 35%;            /* #454870 */
+  --border: 0 0% 100% / 0.06;      /* rgba(255,255,255,0.06) */
+  --border2: 191 100% 50% / 0.18;  /* rgba(0,208,255,0.18) */
+  --s2: 240 37% 7%;                /* #0b0b18 */
+  --s3: 240 32% 9%;                /* #10101f */
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground font-sans antialiased overflow-hidden selection:bg-primary/30 selection:text-primary;
+  }
+  
+  /* Custom scrollbar for cyberpunk feel */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted) / 0.5);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.8);
+  }
+}
+
+@layer utilities {
+  .glow-primary {
+    box-shadow: 0 0 14px hsl(var(--primary) / 0.3);
+  }
+  .glow-primary:hover {
+    box-shadow: 0 0 22px hsl(var(--primary) / 0.5);
+  }
+  .text-glow {
+    text-shadow: 0 0 10px hsl(var(--primary) / 0.5);
+  }
+}
+
+/* Background Blobs */
+.cyber-blob {
+  position: fixed;
+  filter: blur(120px);
+  z-index: 0;
+  border-radius: 50%;
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+/* Markdown prose overrides for dark cyberpunk */
+.prose {
+  color: hsl(var(--foreground));
+  max-width: 100%;
+}
+.prose p { margin-top: 0.5em; margin-bottom: 0.5em; }
+.prose strong { color: hsl(var(--primary)); font-weight: 600; }
+.prose em { color: hsl(var(--muted)); }
+.prose h1, .prose h2, .prose h3, .prose h4 { color: hsl(var(--primary)); font-family: var(--font-sans); margin-top: 1em; margin-bottom: 0.5em; }
+.prose code { 
+  font-family: var(--font-mono); 
+  font-size: 0.85em; 
+  background: hsl(var(--primary) / 0.07); 
+  color: hsl(var(--primary)); 
+  padding: 0.2em 0.4em; 
+  border-radius: 0.25rem;
+  border: 1px solid hsl(var(--primary) / 0.12);
+}
+.prose pre {
+  background: rgba(0,0,0,0.5);
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+.prose pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #9dd0ff;
+}
+.prose ul, .prose ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+.prose li { margin-bottom: 0.25rem; }
+.prose a { color: hsl(var(--secondary)); text-decoration: none; }
+.prose a:hover { text-decoration: underline; text-underline-offset: 4px; }

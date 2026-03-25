@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "CORTEX AI"
+version = "1.0.0"
+id = "artifacts/cortex-ai"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 26091
+
+[services.development]
+run = "pnpm --filter @workspace/cortex-ai run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/cortex-ai", "run", "build" ]
+publicDir = "artifacts/cortex-ai/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "26091"
+BASE_PATH = "/"

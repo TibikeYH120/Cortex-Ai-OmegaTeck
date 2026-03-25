@@ -14,3 +14,152 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * @summary Register a new user
+ */
+export const RegisterUserBody = zod.object({
+  name: zod.string(),
+  email: zod.string().email(),
+  password: zod.string(),
+});
+
+/**
+ * @summary Login user
+ */
+export const LoginUserBody = zod.object({
+  email: zod.string().email(),
+  password: zod.string(),
+});
+
+export const LoginUserResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.string(),
+  createdAt: zod.date(),
+});
+
+/**
+ * @summary Get current user
+ */
+export const GetMeResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.string(),
+  createdAt: zod.date(),
+});
+
+/**
+ * @summary Logout user
+ */
+export const LogoutUserResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Get user profile
+ */
+export const GetProfileResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.string(),
+  bio: zod.string().nullish(),
+  createdAt: zod.date(),
+});
+
+/**
+ * @summary Update user profile
+ */
+export const UpdateProfileBody = zod.object({
+  name: zod.string().optional(),
+  bio: zod.string().optional(),
+});
+
+export const UpdateProfileResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.string(),
+  bio: zod.string().nullish(),
+  createdAt: zod.date(),
+});
+
+/**
+ * @summary List all conversations
+ */
+export const ListAnthropicConversationsResponseItem = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  createdAt: zod.date(),
+});
+export const ListAnthropicConversationsResponse = zod.array(
+  ListAnthropicConversationsResponseItem,
+);
+
+/**
+ * @summary Create a new conversation
+ */
+export const CreateAnthropicConversationBody = zod.object({
+  title: zod.string(),
+});
+
+/**
+ * @summary Get conversation with messages
+ */
+export const GetAnthropicConversationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetAnthropicConversationResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  createdAt: zod.date(),
+  messages: zod.array(
+    zod.object({
+      id: zod.number(),
+      conversationId: zod.number(),
+      role: zod.string(),
+      content: zod.string(),
+      createdAt: zod.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Delete a conversation
+ */
+export const DeleteAnthropicConversationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List messages in a conversation
+ */
+export const ListAnthropicMessagesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListAnthropicMessagesResponseItem = zod.object({
+  id: zod.number(),
+  conversationId: zod.number(),
+  role: zod.string(),
+  content: zod.string(),
+  createdAt: zod.date(),
+});
+export const ListAnthropicMessagesResponse = zod.array(
+  ListAnthropicMessagesResponseItem,
+);
+
+/**
+ * @summary Send a message and receive an AI response (SSE stream)
+ */
+export const SendAnthropicMessageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SendAnthropicMessageBody = zod.object({
+  content: zod.string(),
+});

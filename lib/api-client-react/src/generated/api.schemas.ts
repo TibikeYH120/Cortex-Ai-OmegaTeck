@@ -8,3 +8,77 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface ErrorResponse {
+  error: string;
+}
+
+export interface SuccessResponse {
+  success: boolean;
+}
+
+export interface RegisterBody {
+  name: string;
+  email: string;
+  password: string;
+}
+
+export interface LoginBody {
+  email: string;
+  password: string;
+}
+
+export interface AuthUser {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  createdAt: string;
+}
+
+export interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  bio?: string | null;
+  createdAt: string;
+}
+
+export interface UpdateProfileBody {
+  name?: string;
+  bio?: string;
+}
+
+export interface AnthropicConversation {
+  id: number;
+  title: string;
+  createdAt: string;
+}
+
+export interface AnthropicMessage {
+  id: number;
+  conversationId: number;
+  role: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface CreateAnthropicConversationBody {
+  title: string;
+}
+
+export interface SendAnthropicMessageBody {
+  content: string;
+}
+
+export interface AnthropicConversationWithMessages {
+  id: number;
+  title: string;
+  createdAt: string;
+  messages: AnthropicMessage[];
+}
+
+export interface AnthropicError {
+  error: string;
+}
