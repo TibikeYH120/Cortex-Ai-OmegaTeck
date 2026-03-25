@@ -4,6 +4,29 @@ import { conversations, messages } from "@workspace/db";
 import { eq, asc, desc } from "drizzle-orm";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 
+type AllowedMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+
+interface TextBlockParam {
+  type: "text";
+  text: string;
+}
+
+interface ImageBlockParam {
+  type: "image";
+  source: {
+    type: "base64";
+    media_type: AllowedMediaType;
+    data: string;
+  };
+}
+
+type ContentBlockParam = TextBlockParam | ImageBlockParam;
+
+interface MessageParam {
+  role: "user" | "assistant";
+  content: string | ContentBlockParam[];
+}
+
 const router: IRouter = Router();
 
 const SYSTEM_PROMPT = `You are CORTEX AI, the advanced artificial intelligence assistant of OmegaTeck Technology.
@@ -156,36 +179,36 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
     const existingMessages = await db.select().from(messages).where(eq(messages.conversationId, id)).orderBy(asc(messages.createdAt));
 
     // Build chat messages — all previous as text, the last user message may include an image
-    const chatMessages: any[] = existingMessages.slice(0, -1).map(m => ({
+    const chatMessages: MessageParam[] = existingMessages.slice(0, -1).map(m => ({
       role: m.role as "user" | "assistant",
       content: m.content,
     }));
 
-    // Build the final user message with optional image
-    // Validate attachment: must be a data URL and under ~5MB base64
+    // Build the final user message with optional image attachment
     const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
-    if (imageAttachment && typeof imageAttachment === "string" && imageAttachment.startsWith("data:image/")) {
+    if (imageAttachment != null) {
+      if (typeof imageAttachment !== "string" || !imageAttachment.startsWith("data:image/")) {
+        res.status(400).json({ error: "Invalid image attachment format" });
+        return;
+      }
       if (imageAttachment.length > MAX_ATTACHMENT_BYTES * 1.4) {
         res.status(413).json({ error: "Image attachment too large (max 5 MB)" });
         return;
       }
       const matches = imageAttachment.match(/^data:(image\/(jpeg|png|gif|webp));base64,(.+)$/);
-      if (matches) {
-        const mediaType = matches[1] as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
-        const base64Data = matches[3];
-        const userContent: any[] = [
-          {
-            type: "image",
-            source: { type: "base64", media_type: mediaType, data: base64Data },
-          },
-        ];
-        if (textContent) {
-          userContent.push({ type: "text", text: textContent });
-        }
-        chatMessages.push({ role: "user", content: userContent });
-      } else {
-        chatMessages.push({ role: "user", content: textContent });
+      if (!matches) {
+        res.status(400).json({ error: "Unsupported image type — use JPEG, PNG, GIF, or WEBP" });
+        return;
       }
+      const mediaType = matches[1] as AllowedMediaType;
+      const base64Data = matches[3];
+      const userContent: ContentBlockParam[] = [
+        { type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } },
+      ];
+      if (textContent) {
+        userContent.push({ type: "text", text: textContent });
+      }
+      chatMessages.push({ role: "user", content: userContent });
     } else {
       chatMessages.push({ role: "user", content: textContent });
     }
