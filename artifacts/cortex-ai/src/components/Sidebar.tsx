@@ -10,11 +10,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { MessageSquarePlus, MessageSquare, Trash2, LogOut, Settings, User, ChevronLeft } from "lucide-react";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import { ProfileModal, SettingsModal } from "./Modals";
+import { UserAvatar } from "./AvatarUtils";
 
 export function Sidebar() {
   const { isGuest, user, activeConversationId, setActiveConversationId, sidebarOpen, setSidebarOpen, setGuestMode } = useAppState();
   const queryClient = useQueryClient();
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
@@ -56,19 +56,8 @@ export function Sidebar() {
     }
   };
 
-  const openProfileModal = () => {
-    setProfileMenuOpen(false);
-    setProfileModalOpen(true);
-  };
-
-  const openSettingsModal = () => {
-    setProfileMenuOpen(false);
-    setSettingsModalOpen(true);
-  };
-
-  const userInitials = user?.name
-    ? user.name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase()
-    : "U";
+  const openProfileModal = () => setProfileModalOpen(true);
+  const openSettingsModal = () => setSettingsModalOpen(true);
 
   return (
     <>
@@ -168,9 +157,12 @@ export function Sidebar() {
           {/* Profile Dropdown Trigger */}
           <div className="rounded-xl overflow-hidden bg-white/3 border border-white/5">
             <div className="flex items-center gap-3 p-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#00d0ff]/20 to-[#6c3bff]/20 border border-[#00d0ff]/25 flex items-center justify-center font-display font-bold text-[11px] text-[#00d0ff] shrink-0">
-                {userInitials}
-              </div>
+              <UserAvatar
+                name={user?.name || "Felhasználó"}
+                email={user?.email}
+                size={32}
+                className="rounded-lg"
+              />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold truncate text-white">{user?.name}</div>
                 <div className="text-[10px] font-mono text-muted/60">{user?.role === "guest" ? "Vendég" : "OmegaTeck Tag"}</div>

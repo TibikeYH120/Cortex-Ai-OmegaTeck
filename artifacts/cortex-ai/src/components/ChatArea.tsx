@@ -6,6 +6,7 @@ import { MarkdownRenderer } from "./MarkdownRenderer";
 import { Send, Menu, Plus, StopCircle, Copy, Check, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn, formatDate } from "@/lib/utils";
+import { UserAvatar, CortexAvatar } from "./AvatarUtils";
 
 export function ChatArea() {
   const { user, isGuest, activeConversationId, setActiveConversationId, setSidebarOpen } = useAppState();
@@ -346,13 +347,16 @@ function MessageBubble({
       className={cn("flex gap-4 group", !isAI && "flex-row-reverse")}
     >
       {/* Avatar */}
-      <div className={cn(
-        "w-9 h-9 rounded-xl shrink-0 flex items-center justify-center font-display font-bold text-[11px] mt-1 shadow-lg",
-        isAI
-          ? "bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/30 text-primary shadow-primary/10"
-          : "bg-gradient-to-br from-[#ff2e7e]/10 to-secondary/10 border border-secondary/30 text-secondary shadow-secondary/10"
-      )}>
-        {isAI ? "CX" : (user?.name?.[0]?.toUpperCase() || "U")}
+      <div className="mt-1 shrink-0">
+        {isAI ? (
+          <CortexAvatar size={36} />
+        ) : (
+          <UserAvatar
+            name={user?.name || "Felhasználó"}
+            email={user?.email}
+            size={36}
+          />
+        )}
       </div>
 
       {/* Content */}

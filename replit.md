@@ -46,8 +46,12 @@ Full-stack AI chat application — Hungarian-language interface. Features:
 - Auth screen: Login / Register / Guest mode
 - Chat with Claude Sonnet (claude-sonnet-4-6) branded as "Cortex AI"
 - Conversation history with database persistence
-- Profile system (name, bio)
-- Settings modal
+- Profile system (name, bio, password change, account stats)
+- Settings modal (AI model, appearance, notifications, about)
+- AI-generated Cortex avatar (`public/cortex-avatar.png`)
+- Deterministic SVG user avatars (unique per email/name via `AvatarUtils.tsx`)
+- Modals rendered via React portals to avoid stacking context issues
+- PostgreSQL session store via `connect-pg-simple`
 - Collapsible sidebar on desktop, mobile hamburger menu
 - Dark cyberpunk design (OmegaTeck brand)
 
