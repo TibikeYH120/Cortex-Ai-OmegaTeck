@@ -116,16 +116,37 @@ export function ChatArea() {
     scrollToBottom();
   }, [localMessages, streamingContent]);
 
+  const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+  const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = "";
+    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+      setLocalMessages(prev => [...prev, {
+        id: Date.now(),
+        role: "assistant",
+        content: "⚠ Unsupported file type. Please attach a JPEG, PNG, GIF, or WEBP image.",
+        createdAt: new Date().toISOString()
+      }]);
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      setLocalMessages(prev => [...prev, {
+        id: Date.now(),
+        role: "assistant",
+        content: "⚠ Image too large. Maximum size is 5 MB.",
+        createdAt: new Date().toISOString()
+      }]);
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (ev) => {
       setImageAttachment(ev.target?.result as string);
       setImageAttachmentName(file.name);
     };
     reader.readAsDataURL(file);
-    e.target.value = "";
   };
 
   const clearAttachment = () => {
