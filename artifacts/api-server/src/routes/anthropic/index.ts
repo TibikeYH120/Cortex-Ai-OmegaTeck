@@ -47,10 +47,18 @@ function getOwner(req: Request): Owner {
 
 /**
  * Checks whether a DB conversation row belongs to the caller.
- * Orphaned rows (both userId and guestSessionId are NULL) are not accessible
- * to any regular caller — this is the intended policy for legacy data.
+ *
+ * Ownership rules:
+ *  - Authenticated users: row.userId must equal the session userId.
+ *  - Guest sessions:     row.guestSessionId must equal the session ID.
+ *  - Orphaned rows:      rows with both fields NULL (pre-migration data) do not
+ *    match any caller — they are inaccessible by design and would require a
+ *    direct DB fix or a future admin endpoint to reassign ownership.
  */
-function isOwner(conv: { userId: number | null; guestSessionId: string | null }, owner: Owner): boolean {
+function isOwner(
+  conv: { userId: number | null; guestSessionId: string | null },
+  owner: Owner
+): boolean {
   if (owner.type === "user") {
     return conv.userId === owner.userId;
   }
