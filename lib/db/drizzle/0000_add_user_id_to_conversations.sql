@@ -1,29 +1,20 @@
-CREATE TABLE "users" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"name" text NOT NULL,
-	"email" text NOT NULL,
-	"password_hash" text NOT NULL,
-	"role" text DEFAULT 'member' NOT NULL,
-	"bio" text,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "users_email_unique" UNIQUE("email")
-);
---> statement-breakpoint
-CREATE TABLE "conversations" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"title" text NOT NULL,
-	"user_id" integer,
-	"guest_session_id" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "messages" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"conversation_id" integer NOT NULL,
-	"role" text NOT NULL,
-	"content" text NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-ALTER TABLE "conversations" ADD CONSTRAINT "conversations_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "messages" ADD CONSTRAINT "messages_conversation_id_conversations_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "public"."conversations"("id") ON DELETE cascade ON UPDATE no action;
+-- Additive migration: add user_id and guest_session_id to conversations table.
+-- Safe for existing databases: uses IF NOT EXISTS so running against an already-updated DB is a no-op.
+-- Note: tables (users, conversations, messages) pre-exist; this only adds the two new columns.
+
+ALTER TABLE "conversations" ADD COLUMN IF NOT EXISTS "user_id" integer;
+ALTER TABLE "conversations" ADD COLUMN IF NOT EXISTS "guest_session_id" text;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'conversations_user_id_users_id_fk'
+      AND table_name = 'conversations'
+  ) THEN
+    ALTER TABLE "conversations"
+      ADD CONSTRAINT "conversations_user_id_users_id_fk"
+      FOREIGN KEY ("user_id") REFERENCES "public"."users"("id")
+      ON DELETE CASCADE ON UPDATE NO ACTION;
+  END IF;
+END $$;
