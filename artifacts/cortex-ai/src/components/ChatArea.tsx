@@ -485,20 +485,24 @@ export function ChatArea() {
 
 function SourcesPanel({ sources }: { sources: WebSearchSource[] }) {
   const [open, setOpen] = useState(false);
-
-  if (!sources || sources.length === 0) return null;
+  const hasSources = sources && sources.length > 0;
 
   return (
     <div className="mt-3">
       <button
-        onClick={() => setOpen(p => !p)}
+        onClick={() => hasSources ? setOpen(p => !p) : undefined}
         className="flex items-center gap-2 text-[11px] font-mono text-[#00d0ff]/70 hover:text-[#00d0ff] transition-colors"
+        style={{ cursor: hasSources ? "pointer" : "default" }}
       >
         <Globe size={11} />
         <span className="tracking-widest uppercase">Web search used</span>
-        <span className="text-muted/50">·</span>
-        <span className="text-muted/60">{sources.length} source{sources.length !== 1 ? "s" : ""}</span>
-        {open ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+        {hasSources && (
+          <>
+            <span className="text-muted/50">·</span>
+            <span className="text-muted/60">{sources.length} source{sources.length !== 1 ? "s" : ""}</span>
+            {open ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+          </>
+        )}
       </button>
 
       <AnimatePresence>
@@ -706,9 +710,9 @@ function MessageBubble({
           )}
         </div>
 
-        {/* Sources panel — shown below AI message bubble */}
-        {isAI && message.usedSearch && message.sources?.length > 0 && (
-          <SourcesPanel sources={message.sources} />
+        {/* Sources panel — shown below AI message bubble whenever search was used */}
+        {isAI && message.usedSearch && (
+          <SourcesPanel sources={message.sources ?? []} />
         )}
       </div>
     </motion.div>
