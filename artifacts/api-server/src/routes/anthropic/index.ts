@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { conversations, messages } from "@workspace/db";
-import { eq, asc, desc } from "drizzle-orm";
+import { eq, asc, desc, and } from "drizzle-orm";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 
 type AllowedMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
@@ -48,9 +48,24 @@ When the user requests an image (e.g. "generate an image of...", "create a pictu
 
 The prompt inside the brackets should be detailed and descriptive for best results. Do not add any other text before or after the bracket tag when generating an image.`;
 
+// Helper: resolve the authenticated user's ID, or return null for unauthenticated requests.
+// Guests never reach these endpoints (frontend blocks API calls in guest mode).
+function getSessionUserId(req: Request): number | null {
+  return req.session.userId ?? null;
+}
+
 router.get("/conversations", async (req: Request, res: Response) => {
+  const userId = getSessionUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
-    const rows = await db.select().from(conversations).orderBy(desc(conversations.createdAt));
+    const rows = await db
+      .select()
+      .from(conversations)
+      .where(eq(conversations.userId, userId))
+      .orderBy(desc(conversations.createdAt));
     res.json(rows.map(c => ({
       id: c.id,
       title: c.title,
@@ -63,13 +78,18 @@ router.get("/conversations", async (req: Request, res: Response) => {
 });
 
 router.post("/conversations", async (req: Request, res: Response) => {
+  const userId = getSessionUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   const { title } = req.body;
   if (!title) {
     res.status(400).json({ error: "Title is required" });
     return;
   }
   try {
-    const [conv] = await db.insert(conversations).values({ title }).returning();
+    const [conv] = await db.insert(conversations).values({ title, userId }).returning();
     res.status(201).json({
       id: conv.id,
       title: conv.title,
@@ -82,13 +102,22 @@ router.post("/conversations", async (req: Request, res: Response) => {
 });
 
 router.get("/conversations/:id", async (req: Request, res: Response) => {
+  const userId = getSessionUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ID" });
     return;
   }
   try {
-    const [conv] = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
+    const [conv] = await db
+      .select()
+      .from(conversations)
+      .where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
+      .limit(1);
     if (!conv) {
       res.status(404).json({ error: "Not found" });
       return;
@@ -113,13 +142,21 @@ router.get("/conversations/:id", async (req: Request, res: Response) => {
 });
 
 router.delete("/conversations/:id", async (req: Request, res: Response) => {
+  const userId = getSessionUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ID" });
     return;
   }
   try {
-    const deleted = await db.delete(conversations).where(eq(conversations.id, id)).returning();
+    const deleted = await db
+      .delete(conversations)
+      .where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
+      .returning();
     if (deleted.length === 0) {
       res.status(404).json({ error: "Not found" });
       return;
@@ -132,12 +169,26 @@ router.delete("/conversations/:id", async (req: Request, res: Response) => {
 });
 
 router.get("/conversations/:id/messages", async (req: Request, res: Response) => {
+  const userId = getSessionUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ID" });
     return;
   }
   try {
+    const [conv] = await db
+      .select()
+      .from(conversations)
+      .where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
+      .limit(1);
+    if (!conv) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
     const msgs = await db.select().from(messages).where(eq(messages.conversationId, id)).orderBy(asc(messages.createdAt));
     res.json(msgs.map(m => ({
       id: m.id,
@@ -153,6 +204,11 @@ router.get("/conversations/:id/messages", async (req: Request, res: Response) =>
 });
 
 router.post("/conversations/:id/messages", async (req: Request, res: Response) => {
+  const userId = getSessionUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ID" });
@@ -187,7 +243,11 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
   }
 
   try {
-    const [conv] = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
+    const [conv] = await db
+      .select()
+      .from(conversations)
+      .where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
+      .limit(1);
     if (!conv) {
       res.status(404).json({ error: "Not found" });
       return;

@@ -112,8 +112,14 @@ export function Sidebar() {
           <div className="px-2 mb-2 text-[9px] font-mono text-muted/60 uppercase tracking-[0.2em]">History</div>
 
           {isGuest ? (
-            <div className="text-center p-4 text-xs text-muted/60 bg-white/2 rounded-lg border border-white/4 mx-1">
-              History is not saved in guest mode.
+            <div className="text-center p-4 bg-white/2 rounded-lg border border-white/4 mx-1">
+              <div className="text-xs text-muted/70 mb-2">Sign in to save your chat history.</div>
+              <button
+                onClick={() => { setGuestMode(false); window.location.reload(); }}
+                className="text-[10px] font-mono text-primary/80 hover:text-primary border border-primary/20 hover:border-primary/50 px-3 py-1 rounded-lg transition-all"
+              >
+                Sign in
+              </button>
             </div>
           ) : conversations.length === 0 ? (
             <div className="text-center p-4 text-xs text-muted/50">No conversations yet</div>
