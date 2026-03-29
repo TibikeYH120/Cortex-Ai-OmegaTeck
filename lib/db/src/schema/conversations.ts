@@ -7,6 +7,7 @@ export const conversations = pgTable("conversations", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   userId: integer("user_id").references(() => usersTable.id, { onDelete: "cascade" }),
+  guestSessionId: text("guest_session_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

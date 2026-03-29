@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { conversations, messages } from "@workspace/db";
-import { eq, asc, desc, and } from "drizzle-orm";
+import { eq, asc, desc, and, or, isNull } from "drizzle-orm";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 
 type AllowedMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
@@ -27,6 +27,46 @@ interface MessageParam {
   content: string | ContentBlockParam[];
 }
 
+// Owner identity for a request: either an authenticated user or a guest session.
+type Owner =
+  | { type: "user"; userId: number }
+  | { type: "guest"; sessionId: string };
+
+/**
+ * Resolves the caller's identity from the Express session.
+ * - Authenticated users → { type: "user", userId }
+ * - Everyone else with a valid session → { type: "guest", sessionId }
+ * The session is explicitly saved for guests so the session ID persists across requests.
+ */
+function getOwner(req: Request): Owner {
+  if (req.session.userId) {
+    return { type: "user", userId: req.session.userId };
+  }
+  return { type: "guest", sessionId: req.sessionID };
+}
+
+/**
+ * Checks whether a DB conversation row belongs to the caller.
+ * Orphaned rows (both userId and guestSessionId are NULL) are not accessible
+ * to any regular caller — this is the intended policy for legacy data.
+ */
+function isOwner(conv: { userId: number | null; guestSessionId: string | null }, owner: Owner): boolean {
+  if (owner.type === "user") {
+    return conv.userId === owner.userId;
+  }
+  return conv.guestSessionId === owner.sessionId;
+}
+
+/**
+ * Returns a Drizzle WHERE clause that scopes conversations to the caller.
+ */
+function ownerFilter(owner: Owner) {
+  if (owner.type === "user") {
+    return eq(conversations.userId, owner.userId);
+  }
+  return eq(conversations.guestSessionId, owner.sessionId);
+}
+
 const router: IRouter = Router();
 
 const SYSTEM_PROMPT = `You are CORTEX AI, the advanced artificial intelligence assistant of OmegaTeck Technology.
@@ -48,23 +88,13 @@ When the user requests an image (e.g. "generate an image of...", "create a pictu
 
 The prompt inside the brackets should be detailed and descriptive for best results. Do not add any other text before or after the bracket tag when generating an image.`;
 
-// Helper: resolve the authenticated user's ID, or return null for unauthenticated requests.
-// Guests never reach these endpoints (frontend blocks API calls in guest mode).
-function getSessionUserId(req: Request): number | null {
-  return req.session.userId ?? null;
-}
-
 router.get("/conversations", async (req: Request, res: Response) => {
-  const userId = getSessionUserId(req);
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+  const owner = getOwner(req);
   try {
     const rows = await db
       .select()
       .from(conversations)
-      .where(eq(conversations.userId, userId))
+      .where(ownerFilter(owner))
       .orderBy(desc(conversations.createdAt));
     res.json(rows.map(c => ({
       id: c.id,
@@ -78,18 +108,26 @@ router.get("/conversations", async (req: Request, res: Response) => {
 });
 
 router.post("/conversations", async (req: Request, res: Response) => {
-  const userId = getSessionUserId(req);
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
   const { title } = req.body;
   if (!title) {
     res.status(400).json({ error: "Title is required" });
     return;
   }
+  const owner = getOwner(req);
   try {
-    const [conv] = await db.insert(conversations).values({ title, userId }).returning();
+    const values =
+      owner.type === "user"
+        ? { title, userId: owner.userId }
+        : { title, guestSessionId: owner.sessionId };
+
+    // Persist the session for guests so the session ID survives across requests.
+    if (owner.type === "guest") {
+      await new Promise<void>((resolve, reject) =>
+        req.session.save(err => (err ? reject(err) : resolve()))
+      );
+    }
+
+    const [conv] = await db.insert(conversations).values(values).returning();
     res.status(201).json({
       id: conv.id,
       title: conv.title,
@@ -102,11 +140,6 @@ router.post("/conversations", async (req: Request, res: Response) => {
 });
 
 router.get("/conversations/:id", async (req: Request, res: Response) => {
-  const userId = getSessionUserId(req);
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ID" });
@@ -116,10 +149,15 @@ router.get("/conversations/:id", async (req: Request, res: Response) => {
     const [conv] = await db
       .select()
       .from(conversations)
-      .where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
+      .where(eq(conversations.id, id))
       .limit(1);
     if (!conv) {
       res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const owner = getOwner(req);
+    if (!isOwner(conv, owner)) {
+      res.status(403).json({ error: "Forbidden" });
       return;
     }
     const msgs = await db.select().from(messages).where(eq(messages.conversationId, id)).orderBy(asc(messages.createdAt));
@@ -142,38 +180,6 @@ router.get("/conversations/:id", async (req: Request, res: Response) => {
 });
 
 router.delete("/conversations/:id", async (req: Request, res: Response) => {
-  const userId = getSessionUserId(req);
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) {
-    res.status(400).json({ error: "Invalid ID" });
-    return;
-  }
-  try {
-    const deleted = await db
-      .delete(conversations)
-      .where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
-      .returning();
-    if (deleted.length === 0) {
-      res.status(404).json({ error: "Not found" });
-      return;
-    }
-    res.status(204).send();
-  } catch (err) {
-    req.log.error({ err }, "Delete conversation error");
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-router.get("/conversations/:id/messages", async (req: Request, res: Response) => {
-  const userId = getSessionUserId(req);
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ID" });
@@ -183,10 +189,44 @@ router.get("/conversations/:id/messages", async (req: Request, res: Response) =>
     const [conv] = await db
       .select()
       .from(conversations)
-      .where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
+      .where(eq(conversations.id, id))
       .limit(1);
     if (!conv) {
       res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const owner = getOwner(req);
+    if (!isOwner(conv, owner)) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    await db.delete(conversations).where(eq(conversations.id, id));
+    res.status(204).send();
+  } catch (err) {
+    req.log.error({ err }, "Delete conversation error");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get("/conversations/:id/messages", async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid ID" });
+    return;
+  }
+  try {
+    const [conv] = await db
+      .select()
+      .from(conversations)
+      .where(eq(conversations.id, id))
+      .limit(1);
+    if (!conv) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const owner = getOwner(req);
+    if (!isOwner(conv, owner)) {
+      res.status(403).json({ error: "Forbidden" });
       return;
     }
     const msgs = await db.select().from(messages).where(eq(messages.conversationId, id)).orderBy(asc(messages.createdAt));
@@ -204,11 +244,6 @@ router.get("/conversations/:id/messages", async (req: Request, res: Response) =>
 });
 
 router.post("/conversations/:id/messages", async (req: Request, res: Response) => {
-  const userId = getSessionUserId(req);
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ID" });
@@ -246,10 +281,15 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
     const [conv] = await db
       .select()
       .from(conversations)
-      .where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
+      .where(eq(conversations.id, id))
       .limit(1);
     if (!conv) {
       res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const owner = getOwner(req);
+    if (!isOwner(conv, owner)) {
+      res.status(403).json({ error: "Forbidden" });
       return;
     }
 
