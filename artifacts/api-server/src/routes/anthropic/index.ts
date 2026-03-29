@@ -3,29 +3,19 @@ import { db } from "@workspace/db";
 import { conversations, messages } from "@workspace/db";
 import { eq, asc, desc } from "drizzle-orm";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
+import type {
+  MessageParam,
+  Tool,
+  ContentBlock,
+  ToolUseBlock,
+  ImageBlockParam,
+  TextBlockParam,
+  ToolResultBlockParam,
+  ContentBlockParam,
+  RawMessageStreamEvent,
+} from "@anthropic-ai/sdk/resources";
 
 type AllowedMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
-
-interface TextBlockParam {
-  type: "text";
-  text: string;
-}
-
-interface ImageBlockParam {
-  type: "image";
-  source: {
-    type: "base64";
-    media_type: AllowedMediaType;
-    data: string;
-  };
-}
-
-type ContentBlockParam = TextBlockParam | ImageBlockParam;
-
-interface MessageParam {
-  role: "user" | "assistant";
-  content: string | ContentBlockParam[] | any[];
-}
 
 // Owner identity for a request: either an authenticated user or a guest session.
 type Owner =
@@ -36,7 +26,6 @@ type Owner =
  * Resolves the caller's identity from the Express session.
  * - Authenticated users → { type: "user", userId }
  * - Everyone else with a valid session → { type: "guest", sessionId }
- * The session is explicitly saved for guests so the session ID persists across requests.
  */
 function getOwner(req: Request): Owner {
   if (req.session.userId) {
@@ -47,13 +36,6 @@ function getOwner(req: Request): Owner {
 
 /**
  * Checks whether a DB conversation row belongs to the caller.
- *
- * Ownership rules:
- *  - Authenticated users: row.userId must equal the session userId.
- *  - Guest sessions:     row.guestSessionId must equal the session ID.
- *  - Orphaned rows:      rows with both fields NULL (pre-migration data) do not
- *    match any caller — they are inaccessible by design and would require a
- *    direct DB fix or a future admin endpoint to reassign ownership.
  */
 function isOwner(
   conv: { userId: number | null; guestSessionId: string | null },
@@ -75,7 +57,7 @@ function ownerFilter(owner: Owner) {
   return eq(conversations.guestSessionId, owner.sessionId);
 }
 
-// ── Web search tool ────────────────────────────────────────────────────────────
+// ── Web search ────────────────────────────────────────────────────────────────
 
 export interface WebSearchSource {
   url: string;
@@ -90,7 +72,6 @@ interface SearchResult {
 
 /**
  * Searches Wikipedia for matching articles.
- * Returns up to 4 results with url, title, and extract snippet.
  */
 async function wikipediaSearch(query: string): Promise<SearchResult[]> {
   const params = new URLSearchParams({
@@ -107,8 +88,10 @@ async function wikipediaSearch(query: string): Promise<SearchResult[]> {
     signal: AbortSignal.timeout(6000),
   });
   if (!resp.ok) return [];
-  const data: any = await resp.json();
-  return (data.query?.search ?? []).map((r: any) => ({
+  const data = await resp.json() as {
+    query?: { search?: Array<{ title: string; snippet: string }> };
+  };
+  return (data.query?.search ?? []).map(r => ({
     url: `https://en.wikipedia.org/wiki/${encodeURIComponent(r.title.replace(/ /g, "_"))}`,
     title: r.title,
     snippet: r.snippet.replace(/<\/?[^>]+>/g, "").slice(0, 400),
@@ -131,14 +114,20 @@ async function duckduckgoSearch(query: string): Promise<SearchResult[]> {
     signal: AbortSignal.timeout(6000),
   });
   if (!resp.ok) return [];
-  const data: any = await resp.json();
+  const data = await resp.json() as {
+    AbstractText?: string;
+    AbstractURL?: string;
+    Heading?: string;
+    Results?: Array<{ FirstURL?: string; Text?: string }>;
+    RelatedTopics?: Array<{ FirstURL?: string; Text?: string }>;
+  };
 
   const results: SearchResult[] = [];
 
   if (data.AbstractText && data.AbstractURL) {
     results.push({
       url: data.AbstractURL,
-      title: data.Heading || query,
+      title: data.Heading ?? query,
       snippet: data.AbstractText.slice(0, 400),
     });
   }
@@ -164,37 +153,32 @@ async function duckduckgoSearch(query: string): Promise<SearchResult[]> {
 }
 
 /**
- * Combined web search: DuckDuckGo + Wikipedia.
- * Deduplicates by URL and returns up to 6 results.
+ * Combined web search: DuckDuckGo + Wikipedia, deduplicated.
  */
-async function webSearch(query: string): Promise<SearchResult[]> {
+async function runWebSearch(query: string): Promise<SearchResult[]> {
   const [ddg, wiki] = await Promise.allSettled([
     duckduckgoSearch(query),
     wikipediaSearch(query),
   ]);
-
-  const ddgResults = ddg.status === "fulfilled" ? ddg.value : [];
-  const wikiResults = wiki.status === "fulfilled" ? wiki.value : [];
-
-  // Merge, deduplicating by URL
+  const all = [
+    ...(ddg.status === "fulfilled" ? ddg.value : []),
+    ...(wiki.status === "fulfilled" ? wiki.value : []),
+  ];
   const seen = new Set<string>();
-  const merged: SearchResult[] = [];
-  for (const r of [...ddgResults, ...wikiResults]) {
-    if (r.url && !seen.has(r.url)) {
-      seen.add(r.url);
-      merged.push(r);
-    }
-  }
-  return merged.slice(0, 6);
+  return all.filter(r => {
+    if (!r.url || seen.has(r.url)) return false;
+    seen.add(r.url);
+    return true;
+  }).slice(0, 6);
 }
 
 // Tool definition for Claude — standard function schema, no beta headers required.
-const WEB_SEARCH_TOOL = {
+const WEB_SEARCH_TOOL: Tool = {
   name: "web_search",
   description:
     "Search the web for up-to-date information. Use this when you need current events, recent news, live data (prices, releases, etc.) or any information that may have changed after your training cutoff.",
   input_schema: {
-    type: "object" as const,
+    type: "object",
     properties: {
       query: {
         type: "string",
@@ -234,6 +218,8 @@ You have access to a web_search tool. Use it when:
 Do NOT use web search for general knowledge questions you can answer confidently.
 After receiving search results, synthesize them into a helpful answer and always mention sources.`;
 
+// ── Conversation routes ───────────────────────────────────────────────────────
+
 router.get("/conversations", async (req: Request, res: Response) => {
   const owner = getOwner(req);
   try {
@@ -267,10 +253,8 @@ router.post("/conversations", async (req: Request, res: Response) => {
         : { title, guestSessionId: owner.sessionId };
 
     // Persist the session for guests so the session ID survives across requests.
-    // We mark the session as a guest session (non-empty data) so express-session
-    // will issue a Set-Cookie header even with saveUninitialized: false.
     if (owner.type === "guest") {
-      (req.session as any).guestMode = true;
+      (req.session as Record<string, unknown>).guestMode = true;
       await new Promise<void>((resolve, reject) =>
         req.session.save(err => (err ? reject(err) : resolve()))
       );
@@ -392,21 +376,57 @@ router.get("/conversations/:id/messages", async (req: Request, res: Response) =>
   }
 });
 
+// ── SSE helper ────────────────────────────────────────────────────────────────
+
+/** Writes a JSON-encoded SSE data line and flushes if possible. */
+function sseWrite(res: Response, payload: Record<string, unknown>): void {
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  (res as Response & { flush?: () => void }).flush?.();
+}
+
+/**
+ * Streams the response from a MessageStream to the SSE connection,
+ * accumulating and returning the full text.
+ * Ignores tool_use events — if Claude tries to call a tool in this stream,
+ * that block is skipped (it won't produce text_delta events anyway).
+ */
+async function streamToSSE(
+  stream: AsyncIterable<RawMessageStreamEvent>,
+  res: Response
+): Promise<string> {
+  let fullText = "";
+  for await (const event of stream) {
+    if (
+      event.type === "content_block_delta" &&
+      event.delta.type === "text_delta"
+    ) {
+      fullText += event.delta.text;
+      sseWrite(res, { content: event.delta.text });
+    }
+  }
+  return fullText;
+}
+
+// ── Message endpoint ──────────────────────────────────────────────────────────
+
 router.post("/conversations/:id/messages", async (req: Request, res: Response) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ID" });
     return;
   }
-  const { content, imageAttachment } = req.body;
+  const { content, imageAttachment } = req.body as {
+    content?: string;
+    imageAttachment?: string;
+  };
   if (!content && !imageAttachment) {
     res.status(400).json({ error: "Message content is required" });
     return;
   }
 
-  const textContent = content || "";
+  const textContent = content ?? "";
 
-  // Validate and parse imageAttachment BEFORE any DB writes
+  // Validate image attachment before any DB writes
   const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
   let parsedAttachment: { mediaType: AllowedMediaType; base64Data: string } | null = null;
   if (imageAttachment != null) {
@@ -442,26 +462,35 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
       return;
     }
 
-    // Store only text in DB. Images are ephemeral by design: base64 payloads are too large
-    // for DB storage. Attachment/generated-image previews live only in local React state and
-    // are not restored when the conversation is reloaded from the server.
+    // Persist only text — base64 images are too large for DB and are ephemeral by design.
     await db.insert(messages).values({ conversationId: id, role: "user", content: textContent });
 
-    const existingMessages = await db.select().from(messages).where(eq(messages.conversationId, id)).orderBy(asc(messages.createdAt));
+    const existingMessages = await db
+      .select()
+      .from(messages)
+      .where(eq(messages.conversationId, id))
+      .orderBy(asc(messages.createdAt));
 
-    // Build chat messages — all previous as text, the last user message may include an image
+    // Build the messages array — all previous turns are text-only.
     const chatMessages: MessageParam[] = existingMessages.slice(0, -1).map(m => ({
       role: m.role as "user" | "assistant",
       content: m.content,
     }));
 
-    // Compose the final user message content
+    // Build the final user message (may include an image attachment).
     if (parsedAttachment) {
       const userContent: ContentBlockParam[] = [
-        { type: "image", source: { type: "base64", media_type: parsedAttachment.mediaType, data: parsedAttachment.base64Data } },
+        {
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: parsedAttachment.mediaType,
+            data: parsedAttachment.base64Data,
+          },
+        } satisfies ImageBlockParam,
       ];
       if (textContent) {
-        userContent.push({ type: "text", text: textContent });
+        userContent.push({ type: "text", text: textContent } satisfies TextBlockParam);
       }
       chatMessages.push({ role: "user", content: userContent });
     } else {
@@ -480,108 +509,126 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
     let usedSearch = false;
     const sources: WebSearchSource[] = [];
 
-    // ── Step 1: First (non-streaming) call to detect if Claude wants to search ──
-    // Images are not included in the tool-use path; skip the round-trip for them.
+    // Images are not sent through the tool-use path (Anthropic doesn't mix
+    // image blocks with tool_use in the same turn in a standard way).
     const canSearch = !parsedAttachment;
 
     if (canSearch) {
-      let firstResponse: any;
-      try {
-        firstResponse = await (anthropic.messages.create as any)({
-          model: "claude-sonnet-4-6",
-          max_tokens: 512,
-          system: SYSTEM_PROMPT,
-          tools: [WEB_SEARCH_TOOL],
-          tool_choice: { type: "auto" },
-          messages: chatMessages,
-        });
-      } catch (firstErr: any) {
-        // If the proxy rejects the tools parameter, fall through to plain streaming.
-        req.log.warn({ err: firstErr }, "First-pass tool detection failed, skipping search");
-        firstResponse = null;
-      }
+      // ── Step 1: Non-streaming first call — detect whether Claude wants to search ──
+      // Using a non-streaming call lets us branch before we start writing SSE content,
+      // and avoids partial-stream complexity with the tool_use mid-stream case.
+      const firstResponse = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 512,
+        system: SYSTEM_PROMPT,
+        tools: [WEB_SEARCH_TOOL],
+        tool_choice: { type: "auto" },
+        messages: chatMessages,
+      });
 
-      if (firstResponse?.stop_reason === "tool_use") {
-        const toolUseBlock = firstResponse.content.find((b: any) => b.type === "tool_use");
+      if (firstResponse.stop_reason === "tool_use") {
+        // Find the tool_use block that Claude emitted
+        const toolUseBlock = firstResponse.content.find(
+          (b): b is ToolUseBlock => b.type === "tool_use"
+        );
+
         if (toolUseBlock) {
-          const searchQuery: string = (toolUseBlock.input as any)?.query ?? textContent;
+          const searchQuery = (toolUseBlock.input as { query?: string }).query ?? textContent;
 
-          // Notify the frontend that web search is running
-          res.write(`data: ${JSON.stringify({ searching: true })}\n\n`);
-          (res as any).flush?.();
+          // Notify the client that search is underway
+          sseWrite(res, { searching: true });
           usedSearch = true;
 
           let searchResults: SearchResult[] = [];
           try {
-            searchResults = await webSearch(searchQuery);
+            searchResults = await runWebSearch(searchQuery);
           } catch (searchErr) {
             req.log.warn({ err: searchErr }, "Web search failed, continuing without results");
           }
 
-          // Collect sources for display
+          // Collect sources for the frontend
           for (const r of searchResults) {
             if (r.url && r.title) sources.push({ url: r.url, title: r.title });
           }
 
-          // Instead of using the tool_result pattern (which the Replit proxy handles
-          // inconsistently), inject the search results directly into the user message.
-          // We replace the last user message with a version that includes the results.
-          const contextBlock =
+          const toolResultContent =
             searchResults.length > 0
-              ? `\n\n[WEB SEARCH RESULTS for: "${searchQuery}"]\n` +
-                searchResults
+              ? searchResults
                   .map((r, i) => `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.snippet}`)
-                  .join("\n\n") +
-                "\n[/WEB SEARCH RESULTS]\n\nUsing the search results above, please answer:"
-              : `\n\n[WEB SEARCH returned no results for: "${searchQuery}"]\n\nPlease answer from your training knowledge:`;
+                  .join("\n\n")
+              : "No results found for this query.";
 
-          // Pop the last user message and rebuild it with search context appended
-          chatMessages.pop();
-          chatMessages.push({ role: "user", content: textContent + contextBlock });
+          // Append the assistant's tool_use turn and the user's tool_result turn.
+          // The assistant message must include all content blocks from firstResponse.content
+          // so the conversation history is consistent.
+          const assistantContentBlocks: ContentBlock[] = firstResponse.content;
+          chatMessages.push({ role: "assistant", content: assistantContentBlocks });
+
+          const toolResult: ToolResultBlockParam = {
+            type: "tool_result",
+            tool_use_id: toolUseBlock.id,
+            content: toolResultContent,
+          };
+          chatMessages.push({ role: "user", content: [toolResult] });
+
+          // ── Step 2: Streaming call with tool_result in history ──
+          // tool_choice: auto is intentional — the proxy requires the tools array when
+          // tool_use/tool_result appear in the history. Claude naturally responds with
+          // text at this point because the tool result has already been provided.
+          const stream = anthropic.messages.stream({
+            model: "claude-sonnet-4-6",
+            max_tokens: 8192,
+            system: SYSTEM_PROMPT,
+            tools: [WEB_SEARCH_TOOL],
+            tool_choice: { type: "auto" },
+            messages: chatMessages,
+          });
+          fullResponse = await streamToSSE(stream, res);
+        }
+      } else {
+        // No tool use — Claude answered directly in the first response.
+        // Stream the text as SSE content events so the client gets a consistent experience.
+        for (const block of firstResponse.content) {
+          if (block.type === "text" && block.text) {
+            // Send in chunks of ~80 chars to keep the streaming feel
+            const CHUNK = 80;
+            let i = 0;
+            while (i < block.text.length) {
+              const chunk = block.text.slice(i, i + CHUNK);
+              fullResponse += chunk;
+              sseWrite(res, { content: chunk });
+              i += CHUNK;
+            }
+          }
         }
       }
+    } else {
+      // Image attachment path — skip tool use, go straight to streaming.
+      const stream = anthropic.messages.stream({
+        model: "claude-sonnet-4-6",
+        max_tokens: 8192,
+        system: SYSTEM_PROMPT,
+        messages: chatMessages,
+      });
+      fullResponse = await streamToSSE(stream, res);
     }
 
-    // ── Step 2: Streaming call — plain response (search context is in the message if used) ──
-    const streamParams: any = {
-      model: "claude-sonnet-4-6",
-      max_tokens: 8192,
-      system: SYSTEM_PROMPT,
-      messages: chatMessages,
-    };
-    // Pass tools only for the no-search path so Claude can still decide to search
-    // on follow-up turns in the same conversation.
-    if (canSearch && !usedSearch) {
-      streamParams.tools = [WEB_SEARCH_TOOL];
-      streamParams.tool_choice = { type: "auto" };
-    }
-    const stream = (anthropic.messages.stream as any)(streamParams);
-
-    for await (const event of stream) {
-      const e = event as any;
-      if (e.type === "content_block_delta" && e.delta?.type === "text_delta") {
-        fullResponse += e.delta.text;
-        res.write(`data: ${JSON.stringify({ content: e.delta.text })}\n\n`);
-        (res as any).flush?.();
-      }
-    }
-
+    // Persist the assistant's final text response
     await db.insert(messages).values({ conversationId: id, role: "assistant", content: fullResponse });
 
-    // Emit sources before the done event so the frontend can attach them to the message
+    // Emit sources before the done event
     if (usedSearch && sources.length > 0) {
-      res.write(`data: ${JSON.stringify({ sources })}\n\n`);
-      (res as any).flush?.();
+      sseWrite(res, { sources });
     }
 
-    res.write(`data: ${JSON.stringify({ done: true, usedSearch })}\n\n`);
+    sseWrite(res, { done: true, usedSearch });
     res.end();
   } catch (err) {
     req.log.error({ err }, "Send message error");
     if (!res.headersSent) {
       res.status(500).json({ error: "Server error" });
     } else {
-      res.write(`data: ${JSON.stringify({ error: "Server error" })}\n\n`);
+      sseWrite(res, { error: "Server error" });
       res.end();
     }
   }
