@@ -4,9 +4,14 @@ import { getGetAnthropicConversationQueryKey, getListAnthropicConversationsQuery
 
 const IMAGE_PATTERN = /\[GENERATE_IMAGE:\s*([\s\S]+?)\]/;
 
+export interface WebSearchSource {
+  url: string;
+  title: string;
+}
+
 interface UseChatStreamProps {
   conversationId: number | null;
-  onFinished?: (fullContent: string) => void;
+  onFinished?: (fullContent: string, usedSearch: boolean, sources: WebSearchSource[]) => void;
   onImageGenerated?: (imageData: string, prompt: string) => void;
   onError?: (err: string) => void;
 }
@@ -15,6 +20,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const queryClient = useQueryClient();
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -27,7 +33,10 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
 
     setIsStreaming(true);
     setStreamingContent("");
+    setIsSearching(false);
     let fullText = "";
+    let usedSearch = false;
+    let sources: WebSearchSource[] = [];
 
     abortControllerRef.current = new AbortController();
 
@@ -62,10 +71,28 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
               if (!dataStr) continue;
 
               const data = JSON.parse(dataStr);
-              if (data.done) break;
+
+              if (data.searching) {
+                setIsSearching(true);
+                continue;
+              }
+
+              if (data.sources) {
+                sources = data.sources;
+                continue;
+              }
+
+              if (data.done) {
+                usedSearch = data.usedSearch ?? false;
+                break;
+              }
+
               if (data.content) {
+                // First content chunk means search is done, hide the searching indicator
+                if (isSearching) setIsSearching(false);
                 fullText += data.content;
                 setStreamingContent(fullText);
+                setIsSearching(false);
               }
             } catch (err) {
               console.error("SSE parse error", err, line);
@@ -75,6 +102,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
       }
 
       setIsStreaming(false);
+      setIsSearching(false);
       setStreamingContent("");
 
       // Check if Claude wants to generate an image
@@ -107,7 +135,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
         return;
       }
 
-      onFinished?.(fullText);
+      onFinished?.(fullText, usedSearch, sources);
 
       queryClient.invalidateQueries({ queryKey: getGetAnthropicConversationQueryKey(targetId) });
       queryClient.invalidateQueries({ queryKey: getListAnthropicConversationsQueryKey() });
@@ -119,6 +147,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
       }
     } finally {
       setIsStreaming(false);
+      setIsSearching(false);
       setStreamingContent("");
     }
   };
@@ -127,6 +156,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       setIsStreaming(false);
+      setIsSearching(false);
       setStreamingContent("");
     }
   };
@@ -139,5 +169,5 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
     };
   }, []);
 
-  return { sendMessage, isStreaming, streamingContent, stopStream, isGeneratingImage };
+  return { sendMessage, isStreaming, streamingContent, stopStream, isGeneratingImage, isSearching };
 }

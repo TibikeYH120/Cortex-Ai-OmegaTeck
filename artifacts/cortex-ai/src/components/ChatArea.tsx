@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useAppState } from "@/hooks/use-app-state";
 import { useCreateAnthropicConversation, useGetAnthropicConversation } from "@workspace/api-client-react";
-import { useChatStream } from "@/hooks/use-chat-stream";
+import { useChatStream, type WebSearchSource } from "@/hooks/use-chat-stream";
 import { MarkdownRenderer } from "./MarkdownRenderer";
-import { Send, Menu, Plus, StopCircle, Copy, Check, RotateCcw, Paperclip, X } from "lucide-react";
+import { Send, Menu, Plus, StopCircle, Copy, Check, RotateCcw, Paperclip, X, ChevronDown, ChevronUp, Globe, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn, formatDate } from "@/lib/utils";
 import { UserAvatar, CortexAvatar } from "./AvatarUtils";
@@ -39,14 +39,16 @@ export function ChatArea() {
 
   const createMutation = useCreateAnthropicConversation();
 
-  const { sendMessage, isStreaming, streamingContent, stopStream, isGeneratingImage } = useChatStream({
+  const { sendMessage, isStreaming, streamingContent, stopStream, isGeneratingImage, isSearching } = useChatStream({
     conversationId: activeConversationId,
-    onFinished: (fullContent) => {
+    onFinished: (fullContent, usedSearch, sources) => {
       if (fullContent) {
         setLocalMessages(prev => [...prev, {
           id: Date.now(),
           role: "assistant",
           content: fullContent,
+          usedSearch,
+          sources: usedSearch ? sources : [],
           createdAt: new Date().toISOString()
         }]);
       }
@@ -85,12 +87,12 @@ export function ChatArea() {
       // Skip sync while image generation is in progress (ref avoids effect re-trigger on change)
       if (isGeneratingImageRef.current) return;
       const serverMsgs = filterServerMessages(activeConversation.messages || []);
-      // Merge server messages with local state, preserving ephemeral fields (e.g. imageAttachment).
+      // Merge server messages with local state, preserving ephemeral fields (e.g. imageAttachment, sources).
       // Strategy: match by DB id first, then by role + content + timestamp proximity (≤10s).
       // usedLocalIds prevents the same local attachment binding to multiple server messages.
       setLocalMessages(prev => {
         const usedLocalIds = new Set<number | string>();
-        // 1. Map each server message, preserving ephemeral imageAttachment from local state.
+        // 1. Map each server message, preserving ephemeral imageAttachment/sources from local state.
         const merged = serverMsgs.map(serverMsg => {
           const serverTime = new Date(serverMsg.createdAt).getTime();
           const localMatch = prev.find(m => {
@@ -101,10 +103,13 @@ export function ChatArea() {
             return Math.abs(serverTime - localTime) < 10_000;
           });
           if (localMatch) usedLocalIds.add(localMatch.id);
-          if (localMatch?.imageAttachment) {
-            return { ...serverMsg, imageAttachment: localMatch.imageAttachment };
+          const result = { ...serverMsg };
+          if (localMatch?.imageAttachment) result.imageAttachment = localMatch.imageAttachment;
+          if (localMatch?.usedSearch) {
+            result.usedSearch = localMatch.usedSearch;
+            result.sources = localMatch.sources;
           }
-          return serverMsg;
+          return result;
         });
 
         // 2. Re-inject local assistant image messages (type:"image") that have no DB counterpart.
@@ -340,8 +345,9 @@ export function ChatArea() {
                   <MessageBubble
                     message={{ role: "assistant", content: streamingContent || "", createdAt: new Date().toISOString() }}
                     user={user}
-                    isTyping={!streamingContent}
+                    isTyping={!streamingContent && !isSearching}
                     isStreaming
+                    isSearching={isSearching && !streamingContent}
                   />
                 )}
 
@@ -475,18 +481,77 @@ export function ChatArea() {
   );
 }
 
+// ── Sources panel ──────────────────────────────────────────────────────────────
+
+function SourcesPanel({ sources }: { sources: WebSearchSource[] }) {
+  const [open, setOpen] = useState(false);
+
+  if (!sources || sources.length === 0) return null;
+
+  return (
+    <div className="mt-3">
+      <button
+        onClick={() => setOpen(p => !p)}
+        className="flex items-center gap-2 text-[11px] font-mono text-[#00d0ff]/70 hover:text-[#00d0ff] transition-colors"
+      >
+        <Globe size={11} />
+        <span className="tracking-widest uppercase">Web search used</span>
+        <span className="text-muted/50">·</span>
+        <span className="text-muted/60">{sources.length} source{sources.length !== 1 ? "s" : ""}</span>
+        {open ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+            animate={{ opacity: 1, height: "auto", marginTop: 8 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="flex flex-col gap-1.5 p-3 rounded-xl bg-black/40 border border-[#00d0ff]/10">
+              {sources.map((s, i) => (
+                <a
+                  key={i}
+                  href={s.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start gap-2 group text-xs"
+                >
+                  <span className="font-mono text-[#00d0ff]/40 mt-0.5 shrink-0">{String(i + 1).padStart(2, "0")}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-foreground/80 group-hover:text-[#00d0ff] transition-colors truncate leading-snug">
+                      {s.title || s.url}
+                    </div>
+                    <div className="text-muted/40 font-mono text-[10px] truncate mt-0.5">{s.url}</div>
+                  </div>
+                  <ExternalLink size={10} className="text-muted/30 group-hover:text-[#00d0ff]/60 transition-colors shrink-0 mt-0.5" />
+                </a>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ── Message bubble ─────────────────────────────────────────────────────────────
+
 function MessageBubble({
   message,
   user,
   isTyping = false,
   isStreaming = false,
   isGeneratingImage = false,
+  isSearching = false,
 }: {
   message: any;
   user: any;
   isTyping?: boolean;
   isStreaming?: boolean;
   isGeneratingImage?: boolean;
+  isSearching?: boolean;
 }) {
   const isAI = message.role === "assistant";
   const [copied, setCopied] = useState(false);
@@ -526,7 +591,7 @@ function MessageBubble({
           {message.createdAt && (
             <span className="text-[10px] font-mono text-muted/60">{formatDate(message.createdAt)}</span>
           )}
-          {isAI && !isTyping && !isGeneratingImage && message.content && (
+          {isAI && !isTyping && !isGeneratingImage && !isSearching && message.content && (
             <button
               onClick={handleCopy}
               className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[10px] font-mono text-muted hover:text-white transition-all"
@@ -568,6 +633,21 @@ function MessageBubble({
                 </div>
               </div>
               <div className="h-px bg-gradient-to-r from-[#00d0ff]/30 via-[#6c3bff]/30 to-transparent animate-pulse" />
+            </div>
+          ) : isSearching ? (
+            <div className="flex flex-col gap-3 py-1 min-w-[200px]">
+              <div className="flex items-center gap-3">
+                <div className="relative w-8 h-8 shrink-0">
+                  <div className="absolute inset-0 rounded-lg border-2 border-[#00d0ff]/20 animate-ping" style={{ animationDuration: "1.5s" }} />
+                  <div className="absolute inset-0 rounded-lg border-2 border-t-[#00d0ff] border-[#00d0ff]/10 animate-spin" style={{ animationDuration: "1.2s" }} />
+                  <Globe className="absolute inset-0 m-auto text-[#00d0ff]" size={14} />
+                </div>
+                <div>
+                  <div className="font-mono text-[11px] text-primary tracking-widest uppercase">Searching the web…</div>
+                  <div className="text-[10px] text-muted/50 font-mono mt-0.5">Fetching live data</div>
+                </div>
+              </div>
+              <div className="h-px bg-gradient-to-r from-[#00d0ff]/30 via-[#6c3bff]/20 to-transparent animate-pulse" />
             </div>
           ) : isTyping ? (
             <div className="flex gap-1.5 items-center py-1">
@@ -625,6 +705,11 @@ function MessageBubble({
             </div>
           )}
         </div>
+
+        {/* Sources panel — shown below AI message bubble */}
+        {isAI && message.usedSearch && message.sources?.length > 0 && (
+          <SourcesPanel sources={message.sources} />
+        )}
       </div>
     </motion.div>
   );

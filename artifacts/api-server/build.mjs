@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm } from "node:fs/promises";
+import { rm, copyFile } from "node:fs/promises";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -120,7 +120,20 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   });
 }
 
-buildAll().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+buildAll()
+  .then(async () => {
+    // connect-pg-simple reads table.sql relative to __dirname, which the build banner
+    // overrides to the dist directory. Copy the file so it can be found at runtime.
+    const cgpsSql = path.resolve(artifactDir, "node_modules/connect-pg-simple/table.sql");
+    const destSql = path.resolve(artifactDir, "dist/table.sql");
+    try {
+      await copyFile(cgpsSql, destSql);
+    } catch {
+      // Tolerate missing file — connect-pg-simple is optional and only used if the
+      // session store table doesn't already exist in the DB.
+    }
+  })
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { conversations, messages } from "@workspace/db";
-import { eq, asc, desc, and } from "drizzle-orm";
+import { eq, asc, desc } from "drizzle-orm";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 
 type AllowedMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
@@ -24,7 +24,7 @@ type ContentBlockParam = TextBlockParam | ImageBlockParam;
 
 interface MessageParam {
   role: "user" | "assistant";
-  content: string | ContentBlockParam[];
+  content: string | ContentBlockParam[] | any[];
 }
 
 // Owner identity for a request: either an authenticated user or a guest session.
@@ -75,6 +75,136 @@ function ownerFilter(owner: Owner) {
   return eq(conversations.guestSessionId, owner.sessionId);
 }
 
+// ── Web search tool ────────────────────────────────────────────────────────────
+
+export interface WebSearchSource {
+  url: string;
+  title: string;
+}
+
+interface SearchResult {
+  url: string;
+  title: string;
+  snippet: string;
+}
+
+/**
+ * Searches Wikipedia for matching articles.
+ * Returns up to 4 results with url, title, and extract snippet.
+ */
+async function wikipediaSearch(query: string): Promise<SearchResult[]> {
+  const params = new URLSearchParams({
+    action: "query",
+    list: "search",
+    srsearch: query,
+    srlimit: "4",
+    srprop: "snippet|titlesnippet",
+    format: "json",
+    origin: "*",
+  });
+  const resp = await fetch(`https://en.wikipedia.org/w/api.php?${params.toString()}`, {
+    headers: { "User-Agent": "CORTEX-AI-Search/1.0" },
+    signal: AbortSignal.timeout(6000),
+  });
+  if (!resp.ok) return [];
+  const data: any = await resp.json();
+  return (data.query?.search ?? []).map((r: any) => ({
+    url: `https://en.wikipedia.org/wiki/${encodeURIComponent(r.title.replace(/ /g, "_"))}`,
+    title: r.title,
+    snippet: r.snippet.replace(/<\/?[^>]+>/g, "").slice(0, 400),
+  }));
+}
+
+/**
+ * DuckDuckGo Instant Answer JSON API — good for quick facts and Wikipedia abstracts.
+ */
+async function duckduckgoSearch(query: string): Promise<SearchResult[]> {
+  const params = new URLSearchParams({
+    q: query,
+    format: "json",
+    no_html: "1",
+    skip_disambig: "1",
+    t: "cortex-ai",
+  });
+  const resp = await fetch(`https://api.duckduckgo.com/?${params.toString()}`, {
+    headers: { "Accept-Language": "en-US,en;q=0.9" },
+    signal: AbortSignal.timeout(6000),
+  });
+  if (!resp.ok) return [];
+  const data: any = await resp.json();
+
+  const results: SearchResult[] = [];
+
+  if (data.AbstractText && data.AbstractURL) {
+    results.push({
+      url: data.AbstractURL,
+      title: data.Heading || query,
+      snippet: data.AbstractText.slice(0, 400),
+    });
+  }
+  for (const r of (data.Results ?? []).slice(0, 3)) {
+    if (r.FirstURL && r.Text) {
+      results.push({
+        url: r.FirstURL,
+        title: r.Text.split(" - ")[0].slice(0, 120),
+        snippet: r.Text.slice(0, 400),
+      });
+    }
+  }
+  for (const t of (data.RelatedTopics ?? []).slice(0, 4)) {
+    if (t.FirstURL && t.Text) {
+      results.push({
+        url: t.FirstURL,
+        title: t.Text.split(" - ")[0].slice(0, 120),
+        snippet: t.Text.slice(0, 400),
+      });
+    }
+  }
+  return results.slice(0, 5);
+}
+
+/**
+ * Combined web search: DuckDuckGo + Wikipedia.
+ * Deduplicates by URL and returns up to 6 results.
+ */
+async function webSearch(query: string): Promise<SearchResult[]> {
+  const [ddg, wiki] = await Promise.allSettled([
+    duckduckgoSearch(query),
+    wikipediaSearch(query),
+  ]);
+
+  const ddgResults = ddg.status === "fulfilled" ? ddg.value : [];
+  const wikiResults = wiki.status === "fulfilled" ? wiki.value : [];
+
+  // Merge, deduplicating by URL
+  const seen = new Set<string>();
+  const merged: SearchResult[] = [];
+  for (const r of [...ddgResults, ...wikiResults]) {
+    if (r.url && !seen.has(r.url)) {
+      seen.add(r.url);
+      merged.push(r);
+    }
+  }
+  return merged.slice(0, 6);
+}
+
+// Tool definition for Claude — standard function schema, no beta headers required.
+const WEB_SEARCH_TOOL = {
+  name: "web_search",
+  description:
+    "Search the web for up-to-date information. Use this when you need current events, recent news, live data (prices, releases, etc.) or any information that may have changed after your training cutoff.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      query: {
+        type: "string",
+        description: "A concise, specific search query (English preferred for best results)",
+      },
+    },
+    required: ["query"],
+  },
+};
+
 const router: IRouter = Router();
 
 const SYSTEM_PROMPT = `You are CORTEX AI, the advanced artificial intelligence assistant of OmegaTeck Technology.
@@ -94,7 +224,15 @@ IMAGE GENERATION:
 When the user requests an image (e.g. "generate an image of...", "create a picture of...", "draw me...", "make an image of..."), respond with ONLY this format and nothing else:
 [GENERATE_IMAGE: <detailed image prompt in English>]
 
-The prompt inside the brackets should be detailed and descriptive for best results. Do not add any other text before or after the bracket tag when generating an image.`;
+The prompt inside the brackets should be detailed and descriptive for best results. Do not add any other text before or after the bracket tag when generating an image.
+
+WEB SEARCH:
+You have access to a web_search tool. Use it when:
+- The user asks about current events, recent news, or anything time-sensitive
+- You need up-to-date information (prices, docs, releases, stats)
+- You are uncertain whether your training data is current enough
+Do NOT use web search for general knowledge questions you can answer confidently.
+After receiving search results, synthesize them into a helpful answer and always mention sources.`;
 
 router.get("/conversations", async (req: Request, res: Response) => {
   const owner = getOwner(req);
@@ -129,7 +267,10 @@ router.post("/conversations", async (req: Request, res: Response) => {
         : { title, guestSessionId: owner.sessionId };
 
     // Persist the session for guests so the session ID survives across requests.
+    // We mark the session as a guest session (non-empty data) so express-session
+    // will issue a Set-Cookie header even with saveUninitialized: false.
     if (owner.type === "guest") {
+      (req.session as any).guestMode = true;
       await new Promise<void>((resolve, reject) =>
         req.session.save(err => (err ? reject(err) : resolve()))
       );
@@ -336,24 +477,104 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
     res.flushHeaders();
 
     let fullResponse = "";
-    const stream = anthropic.messages.stream({
+    let usedSearch = false;
+    const sources: WebSearchSource[] = [];
+
+    // ── Step 1: First (non-streaming) call to detect if Claude wants to search ──
+    // Images are not included in the tool-use path; skip the round-trip for them.
+    const canSearch = !parsedAttachment;
+
+    if (canSearch) {
+      let firstResponse: any;
+      try {
+        firstResponse = await (anthropic.messages.create as any)({
+          model: "claude-sonnet-4-6",
+          max_tokens: 512,
+          system: SYSTEM_PROMPT,
+          tools: [WEB_SEARCH_TOOL],
+          tool_choice: { type: "auto" },
+          messages: chatMessages,
+        });
+      } catch (firstErr: any) {
+        // If the proxy rejects the tools parameter, fall through to plain streaming.
+        req.log.warn({ err: firstErr }, "First-pass tool detection failed, skipping search");
+        firstResponse = null;
+      }
+
+      if (firstResponse?.stop_reason === "tool_use") {
+        const toolUseBlock = firstResponse.content.find((b: any) => b.type === "tool_use");
+        if (toolUseBlock) {
+          const searchQuery: string = (toolUseBlock.input as any)?.query ?? textContent;
+
+          // Notify the frontend that web search is running
+          res.write(`data: ${JSON.stringify({ searching: true })}\n\n`);
+          (res as any).flush?.();
+          usedSearch = true;
+
+          let searchResults: SearchResult[] = [];
+          try {
+            searchResults = await webSearch(searchQuery);
+          } catch (searchErr) {
+            req.log.warn({ err: searchErr }, "Web search failed, continuing without results");
+          }
+
+          // Collect sources for display
+          for (const r of searchResults) {
+            if (r.url && r.title) sources.push({ url: r.url, title: r.title });
+          }
+
+          // Instead of using the tool_result pattern (which the Replit proxy handles
+          // inconsistently), inject the search results directly into the user message.
+          // We replace the last user message with a version that includes the results.
+          const contextBlock =
+            searchResults.length > 0
+              ? `\n\n[WEB SEARCH RESULTS for: "${searchQuery}"]\n` +
+                searchResults
+                  .map((r, i) => `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.snippet}`)
+                  .join("\n\n") +
+                "\n[/WEB SEARCH RESULTS]\n\nUsing the search results above, please answer:"
+              : `\n\n[WEB SEARCH returned no results for: "${searchQuery}"]\n\nPlease answer from your training knowledge:`;
+
+          // Pop the last user message and rebuild it with search context appended
+          chatMessages.pop();
+          chatMessages.push({ role: "user", content: textContent + contextBlock });
+        }
+      }
+    }
+
+    // ── Step 2: Streaming call — plain response (search context is in the message if used) ──
+    const streamParams: any = {
       model: "claude-sonnet-4-6",
       max_tokens: 8192,
       system: SYSTEM_PROMPT,
       messages: chatMessages,
-    });
+    };
+    // Pass tools only for the no-search path so Claude can still decide to search
+    // on follow-up turns in the same conversation.
+    if (canSearch && !usedSearch) {
+      streamParams.tools = [WEB_SEARCH_TOOL];
+      streamParams.tool_choice = { type: "auto" };
+    }
+    const stream = (anthropic.messages.stream as any)(streamParams);
 
     for await (const event of stream) {
-      if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-        fullResponse += event.delta.text;
-        res.write(`data: ${JSON.stringify({ content: event.delta.text })}\n\n`);
-        // Force-flush each chunk so the proxy doesn't buffer the stream
+      const e = event as any;
+      if (e.type === "content_block_delta" && e.delta?.type === "text_delta") {
+        fullResponse += e.delta.text;
+        res.write(`data: ${JSON.stringify({ content: e.delta.text })}\n\n`);
         (res as any).flush?.();
       }
     }
 
     await db.insert(messages).values({ conversationId: id, role: "assistant", content: fullResponse });
-    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+
+    // Emit sources before the done event so the frontend can attach them to the message
+    if (usedSearch && sources.length > 0) {
+      res.write(`data: ${JSON.stringify({ sources })}\n\n`);
+      (res as any).flush?.();
+    }
+
+    res.write(`data: ${JSON.stringify({ done: true, usedSearch })}\n\n`);
     res.end();
   } catch (err) {
     req.log.error({ err }, "Send message error");
