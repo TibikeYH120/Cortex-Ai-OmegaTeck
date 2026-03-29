@@ -6,7 +6,6 @@ import { anthropic } from "@workspace/integrations-anthropic-ai";
 import type {
   MessageParam,
   Tool,
-  ToolResultBlockParam,
   ContentBlockParam,
   ImageBlockParam,
   TextBlockParam,
@@ -183,33 +182,36 @@ function sseWrite(res: Response, payload: Record<string, unknown>): void {
   (res as FlushableResponse).flush?.();
 }
 
-// ── Core streaming loop ───────────────────────────────────────────────────────
+// ── Streaming conversation helper ─────────────────────────────────────────────
+
+/** Extract the plain-text content from the last MessageParam in a list. */
+function lastUserText(msgs: MessageParam[]): string {
+  const last = msgs[msgs.length - 1];
+  if (typeof last?.content === "string") return last.content;
+  if (Array.isArray(last?.content)) {
+    for (const b of last.content) {
+      if (b.type === "text") return b.text;
+    }
+  }
+  return "";
+}
 
 /**
- * Runs the Anthropic streaming conversation with automatic tool-use handling.
+ * Two-phase streaming conversation:
  *
- * Two-phase approach:
+ * Phase 1 – run a streaming call with the web_search tool (tool_choice: auto).
+ *   Text deltas are forwarded to the SSE client immediately (true streaming).
+ *   If the model uses the tool instead, collect the tool input JSON.
  *
- * PHASE 1 — Detection stream (tool_choice: auto, max_tokens: 8192):
- *   • Start a real streaming call with the web_search tool.
- *   • Forward text_delta events to the SSE client immediately (true streaming).
- *   • If a tool_use block arrives instead, collect its input_json_delta events.
- *   • The stream ends naturally with stop_reason "end_turn" or "tool_use".
- *
- * PHASE 2 — Synthesis stream (no tools, max_tokens: 8192):
- *   Only reached if Phase 1 ended with a tool call.
- *   • Emit { searching: true } to the frontend.
- *   • Execute the web search (DuckDuckGo + Wikipedia).
- *   • Build a clean synthesis message history: the original messages with the
- *     last user turn augmented by the search results.  The tool_use/tool_result
- *     pair is NOT included in this history because the Replit Anthropic proxy
- *     (Vertex AI backend) does not support tool_choice:"none", which is the
- *     only standard mechanism to prevent Claude from re-searching after a
- *     tool_result.  Providing results via the user message achieves the same
- *     semantic goal — Claude synthesises the fetched data into a text response
- *     — while remaining compatible with the proxy.
- *   • Start a second real streaming call (no tools) and forward its text_delta
- *     events immediately (true streaming).
+ * Phase 2 – only when Phase 1 called a tool:
+ *   Execute the web search, then run a second streaming synthesis call with
+ *   the results embedded in the user message.  The tool_use/tool_result pair
+ *   is omitted from the synthesis history because the Replit Anthropic proxy
+ *   (Vertex AI / Claude) does not support tool_choice:"none", which is the
+ *   mechanism that would normally prevent Claude from re-searching.
+ *   A fallback synthesis call (no search context) is issued whenever the
+ *   search query is unparseable or the search itself fails, so the response
+ *   is always non-empty.
  */
 async function runStreamingConversation(
   chatMessages: MessageParam[],
@@ -218,8 +220,6 @@ async function runStreamingConversation(
   log: Request["log"]
 ): Promise<{ fullText: string; usedSearch: boolean; sources: WebSearchSource[] }> {
   let fullText = "";
-
-  // ── Phase 1: detection stream ─────────────────────────────────────────────
 
   const detectionStream = anthropic.messages.stream({
     model: "claude-sonnet-4-6",
@@ -243,7 +243,6 @@ async function runStreamingConversation(
           toolInputJson = "";
         }
         break;
-
       case "content_block_delta":
         if (event.delta.type === "text_delta" && !inToolUse) {
           fullText += event.delta.text;
@@ -252,22 +251,20 @@ async function runStreamingConversation(
           toolInputJson += event.delta.partial_json;
         }
         break;
-
       case "content_block_stop":
         if (inToolUse) inToolUse = false;
         break;
-
       default:
         break;
     }
   }
 
   if (!toolUseId) {
-    // No tool was called — the detection stream IS the final response.
     return { fullText, usedSearch: false, sources: [] };
   }
 
-  // ── Phase 2: search execution + synthesis stream ──────────────────────────
+  // Phase 2 — search and synthesis
+  sseWrite(res, { searching: true });
 
   let searchQuery = "";
   try {
@@ -276,72 +273,48 @@ async function runStreamingConversation(
     searchQuery = "";
   }
 
-  sseWrite(res, { searching: true });
-
   const sources: WebSearchSource[] = [];
+  let contextText = "No search results available.";
 
   if (searchQuery) {
-    let searchResults: SearchResult[] = [];
+    let results: SearchResult[] = [];
     try {
-      searchResults = await runWebSearch(searchQuery);
-    } catch (searchErr) {
-      log.warn({ err: searchErr }, "Web search failed");
+      results = await runWebSearch(searchQuery);
+    } catch (err) {
+      log.warn({ err }, "Web search failed");
     }
-
-    for (const r of searchResults) {
+    for (const r of results) {
       if (r.url && r.title && !sources.some(s => s.url === r.url)) {
         sources.push({ url: r.url, title: r.title });
       }
     }
-
-    const toolResultText =
-      searchResults.length > 0
-        ? searchResults
-            .map((r, i) => `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.snippet}`)
-            .join("\n\n")
+    contextText =
+      results.length > 0
+        ? results.map((r, i) => `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.snippet}`).join("\n\n")
         : "No results found for this query.";
+  }
 
-    // Derive the original user message text to re-present it alongside the
-    // search results.  chatMessages[-1] is always the latest user turn.
-    const lastUserMsg = chatMessages[chatMessages.length - 1];
-    let originalUserText = "";
-    if (typeof lastUserMsg.content === "string") {
-      originalUserText = lastUserMsg.content;
-    } else if (Array.isArray(lastUserMsg.content)) {
-      for (const block of lastUserMsg.content) {
-        if (block.type === "text") {
-          originalUserText = block.text;
-          break;
-        }
-      }
-    }
+  const originalUserText = lastUserText(chatMessages);
+  const synthesisUserContent = searchQuery
+    ? `[WEB SEARCH RESULTS for "${searchQuery}"]:\n\n${contextText}\n\n[END SEARCH RESULTS]\n\nUser question: ${originalUserText}`
+    : originalUserText;
 
-    // Build a clean synthesis history: earlier turns + an augmented user message
-    // that embeds the search results.  No tool_use/tool_result blocks means no
-    // tools parameter is required, and Claude responds with text naturally.
-    const synthesisMessages: MessageParam[] = [
-      ...chatMessages.slice(0, -1),
-      {
-        role: "user",
-        content: `[WEB SEARCH RESULTS for "${searchQuery}"]:\n\n${toolResultText}\n\n[END SEARCH RESULTS]\n\nUser question: ${originalUserText}`,
-      },
-    ];
+  const synthesisMessages: MessageParam[] = [
+    ...chatMessages.slice(0, -1),
+    { role: "user", content: synthesisUserContent },
+  ];
 
-    const synthesisStream = anthropic.messages.stream({
-      model: "claude-sonnet-4-6",
-      max_tokens: 8192,
-      system,
-      messages: synthesisMessages,
-    });
+  const synthesisStream = anthropic.messages.stream({
+    model: "claude-sonnet-4-6",
+    max_tokens: 8192,
+    system,
+    messages: synthesisMessages,
+  });
 
-    for await (const event of synthesisStream) {
-      if (
-        event.type === "content_block_delta" &&
-        event.delta.type === "text_delta"
-      ) {
-        fullText += event.delta.text;
-        sseWrite(res, { content: event.delta.text });
-      }
+  for await (const event of synthesisStream) {
+    if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+      fullText += event.delta.text;
+      sseWrite(res, { content: event.delta.text });
     }
   }
 
