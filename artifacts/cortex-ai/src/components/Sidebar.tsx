@@ -108,17 +108,7 @@ export function Sidebar() {
         <div className="flex-1 overflow-y-auto px-3 pb-3">
           <div className="px-2 mb-2 text-[9px] font-mono text-muted/60 uppercase tracking-[0.2em]">History</div>
 
-          {isGuest ? (
-            <div className="text-center p-4 bg-white/2 rounded-lg border border-white/4 mx-1">
-              <div className="text-xs text-muted/70 mb-2">Sign in to save your chat history.</div>
-              <button
-                onClick={() => { setGuestMode(false); window.location.reload(); }}
-                className="text-[10px] font-mono text-primary/80 hover:text-primary border border-primary/20 hover:border-primary/50 px-3 py-1 rounded-lg transition-all"
-              >
-                Sign in
-              </button>
-            </div>
-          ) : conversations.length === 0 ? (
+          {conversations.length === 0 ? (
             <div className="text-center p-4 text-xs text-muted/50">No conversations yet</div>
           ) : (
             <div className="flex flex-col gap-0.5">
@@ -151,6 +141,19 @@ export function Sidebar() {
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Guest: show a sign-in nudge below the conversation list */}
+          {isGuest && (
+            <div className="mx-1 mt-3 p-3 bg-white/2 rounded-lg border border-white/4 text-center">
+              <div className="text-[11px] text-muted/70 mb-2">Sign in to save your history permanently.</div>
+              <button
+                onClick={() => { setGuestMode(false); window.location.reload(); }}
+                className="text-[10px] font-mono text-primary/80 hover:text-primary border border-primary/20 hover:border-primary/50 px-3 py-1 rounded-lg transition-all"
+              >
+                Sign in
+              </button>
             </div>
           )}
         </div>
