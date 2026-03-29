@@ -18,9 +18,7 @@ export function Sidebar() {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
-  const { data: conversations = [] } = useListAnthropicConversations({
-    query: { enabled: !isGuest }
-  });
+  const { data: conversations = [] } = useListAnthropicConversations();
 
   const deleteMutation = useDeleteAnthropicConversation({
     mutation: {
@@ -34,18 +32,17 @@ export function Sidebar() {
     mutation: {
       onSuccess: () => {
         queryClient.clear();
+        if (isGuest) setGuestMode(false);
         window.location.reload();
       }
     }
   });
 
   const handleLogout = () => {
-    if (isGuest) {
-      setGuestMode(false);
-      window.location.reload();
-    } else {
-      logoutMutation.mutate();
-    }
+    // Both guests and logged-in users call the backend logout endpoint so the
+    // server session is destroyed. For guests this clears their session-scoped
+    // conversation history; for members it ends the auth session.
+    logoutMutation.mutate();
   };
 
   const handleDelete = (e: React.MouseEvent, id: number) => {

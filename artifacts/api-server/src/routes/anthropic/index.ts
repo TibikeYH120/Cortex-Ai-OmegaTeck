@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { conversations, messages } from "@workspace/db";
-import { eq, asc, desc, and, or, isNull } from "drizzle-orm";
+import { eq, asc, desc, and } from "drizzle-orm";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 
 type AllowedMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";

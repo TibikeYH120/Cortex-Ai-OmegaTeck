@@ -21,7 +21,7 @@ function filterServerMessages(msgs: any[]): any[] {
 }
 
 export function ChatArea() {
-  const { user, isGuest, activeConversationId, setActiveConversationId, setSidebarOpen } = useAppState();
+  const { user, activeConversationId, setActiveConversationId, setSidebarOpen } = useAppState();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -34,7 +34,7 @@ export function ChatArea() {
   const isGeneratingImageRef = useRef(false);
 
   const { data: activeConversation } = useGetAnthropicConversation(activeConversationId!, {
-    query: { enabled: !!activeConversationId && !isGuest }
+    query: { enabled: !!activeConversationId }
   });
 
   const createMutation = useCreateAnthropicConversation();
@@ -202,27 +202,10 @@ export function ChatArea() {
       let targetConvId = activeConversationId;
 
       if (!targetConvId) {
-        if (isGuest) {
-          targetConvId = Date.now();
-          setActiveConversationId(targetConvId);
-        } else {
-          const title = content.length > 50 ? content.slice(0, 50) + "..." : content || "Image conversation";
-          const newConv = await createMutation.mutateAsync({ data: { title } });
-          targetConvId = newConv.id;
-          setActiveConversationId(targetConvId);
-        }
-      }
-
-      if (isGuest) {
-        setTimeout(() => {
-          setLocalMessages(prev => [...prev, {
-            id: Date.now() + 1,
-            role: "assistant",
-            content: "You're in guest mode with limited access. Sign up to unlock the full CORTEX AI experience!\n\nAfter registering you get:\n- Unlimited AI messages\n- Saved conversation history\n- Personalized experience",
-            createdAt: new Date().toISOString()
-          }]);
-        }, 800);
-        return;
+        const title = content.length > 50 ? content.slice(0, 50) + "..." : content || "Image conversation";
+        const newConv = await createMutation.mutateAsync({ data: { title } });
+        targetConvId = newConv.id;
+        setActiveConversationId(targetConvId);
       }
 
       await sendMessage(content, targetConvId, attachmentToSend || undefined);
