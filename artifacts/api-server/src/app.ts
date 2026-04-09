@@ -11,6 +11,11 @@ const PgStore = connectPgSimple(session);
 
 const app: Express = express();
 
+// Trust the first proxy so Railway's TLS termination is respected.
+// Without this, express-session's secure cookies are never set because
+// req.secure is false behind the proxy even though the connection is HTTPS.
+app.set("trust proxy", 1);
+
 app.use(
   pinoHttp({
     logger,
@@ -56,8 +61,16 @@ app.use("/api", router);
 
 if (process.env.NODE_ENV === "production") {
   const publicDir = path.join(__dirname, "public");
+
   app.use(express.static(publicDir));
-  app.get("*", (_req, res) => {
+
+  // Explicit 404 for unmatched /api/* paths so they return JSON, not the SPA.
+  app.use("/api", (_req, res) => {
+    res.status(404).json({ error: "Not found" });
+  });
+
+  // SPA catch-all — Express 5 requires a named wildcard parameter.
+  app.get("/{*path}", (_req, res) => {
     res.sendFile(path.join(publicDir, "index.html"));
   });
 }

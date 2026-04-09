@@ -16,12 +16,8 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-try {
-  await runStartupMigrations();
-  logger.info("Database schema ready");
-} catch (err) {
-  logger.error({ err }, "Startup migration failed — continuing anyway");
-}
+await runStartupMigrations();
+logger.info("Database schema ready");
 
 app.listen(port, (err) => {
   if (err) {
