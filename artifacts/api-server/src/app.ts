@@ -41,13 +41,20 @@ app.use(cors({
 }));
 app.use(express.json({ limit: "8mb" }));
 app.use(express.urlencoded({ extended: true, limit: "8mb" }));
+const sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret && process.env.NODE_ENV === "production") {
+  throw new Error(
+    "SESSION_SECRET environment variable must be set in production.",
+  );
+}
+
 app.use(session({
   store: new PgStore({
     conString: process.env.DATABASE_URL,
     tableName: "session",
     createTableIfMissing: true,
   }),
-  secret: process.env.SESSION_SECRET || "cortex-ai-secret-dev-key-2024",
+  secret: sessionSecret || "cortex-ai-secret-dev-key-2024",
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -62,6 +69,7 @@ app.use("/api", router);
 if (process.env.NODE_ENV === "production") {
   const publicDir = path.join(__dirname, "public");
 
+  logger.info({ publicDir }, "Serving frontend static files");
   app.use(express.static(publicDir));
 
   // Explicit 404 for unmatched /api/* paths so they return JSON, not the SPA.
