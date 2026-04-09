@@ -3,6 +3,7 @@ import cors from "cors";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import pinoHttp from "pino-http";
+import path from "path";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
@@ -45,12 +46,20 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false,
+    secure: process.env.NODE_ENV === "production",
     httpOnly: true,
     maxAge: 7 * 24 * 60 * 60 * 1000,
   },
 }));
 
 app.use("/api", router);
+
+if (process.env.NODE_ENV === "production") {
+  const publicDir = path.join(__dirname, "public");
+  app.use(express.static(publicDir));
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(publicDir, "index.html"));
+  });
+}
 
 export default app;

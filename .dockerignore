@@ -1,0 +1,14 @@
+.git
+.gitignore
+.local
+.replit
+replit.nix
+replit.md
+attached_assets
+node_modules
+artifacts/*/node_modules
+artifacts/*/dist
+lib/*/node_modules
+scripts/node_modules
+*.log
+*.map
