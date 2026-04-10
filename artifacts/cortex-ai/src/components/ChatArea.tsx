@@ -699,7 +699,7 @@ const MessageBubble = memo(function MessageBubble({
             <span className="text-[10px] font-mono text-muted/60">{formatDate(message.createdAt)}</span>
           )}
           {isAI && !isTyping && !isGeneratingImage && !isSearching && message.content && (
-            <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 transition-all">
+            <div className="flex items-center gap-2 mt-0.5">
               <button
                 onClick={handleCopy}
                 className="flex items-center gap-1 text-[10px] font-mono text-muted hover:text-white transition-colors"
@@ -712,22 +712,36 @@ const MessageBubble = memo(function MessageBubble({
                   onClick={onSpeak}
                   title={isThisPlaying ? "Stop" : isLoadingThisAudio ? "Loading audio…" : "Read aloud"}
                   className={cn(
-                    "relative flex items-center justify-center text-[10px] font-mono transition-all rounded-full",
-                    isThisPlaying ? "text-[#00d0ff]" :
-                    isLoadingThisAudio ? "text-muted/60 cursor-wait" :
-                    "text-muted hover:text-[#00d0ff]"
+                    "relative flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono transition-all",
+                    isThisPlaying
+                      ? "text-[#00d0ff]"
+                      : isLoadingThisAudio
+                      ? "text-[#00d0ff]/50 cursor-wait"
+                      : "text-[#00d0ff]/60 hover:text-[#00d0ff]"
                   )}
+                  style={{
+                    background: isThisPlaying
+                      ? "rgba(0,208,255,0.12)"
+                      : "rgba(0,208,255,0.06)",
+                    border: isThisPlaying
+                      ? "1px solid rgba(0,208,255,0.35)"
+                      : "1px solid rgba(0,208,255,0.15)",
+                    boxShadow: isThisPlaying
+                      ? "0 0 10px rgba(0,208,255,0.2)"
+                      : undefined,
+                  }}
                 >
                   {isThisPlaying && (
-                    <span className="absolute inset-[-3px] rounded-full border border-[#00d0ff]/50 animate-ping" />
+                    <span className="absolute inset-[-2px] rounded-full border border-[#00d0ff]/30 animate-ping" />
                   )}
                   {isLoadingThisAudio ? (
-                    <Loader2 size={10} className="animate-spin" />
+                    <Loader2 size={13} className="animate-spin" />
                   ) : isThisPlaying ? (
-                    <VolumeX size={10} />
+                    <VolumeX size={13} />
                   ) : (
-                    <Volume2 size={10} />
+                    <Volume2 size={13} />
                   )}
+                  <span>{isLoadingThisAudio ? "Loading…" : isThisPlaying ? "Stop" : "Read"}</span>
                 </button>
               )}
             </div>
