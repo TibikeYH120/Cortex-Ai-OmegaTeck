@@ -81,78 +81,87 @@ async function wikipediaSearch(query: string): Promise<SearchResult[]> {
   }));
 }
 
-/** DuckDuckGo Instant Answer API — good for direct facts. */
-async function duckduckgoSearch(query: string): Promise<SearchResult[]> {
+/**
+ * Brave Web Search API — real web results with titles, URLs, and descriptions.
+ * Requires BRAVE_SEARCH_API_KEY env var (free tier: 2,000 queries/month).
+ * Returns empty array if the key is not set, so callers fall back gracefully.
+ */
+async function braveSearch(query: string): Promise<SearchResult[]> {
+  const apiKey = process.env["BRAVE_SEARCH_API_KEY"];
+  if (!apiKey) return [];
+
   const params = new URLSearchParams({
     q: query,
-    format: "json",
-    no_html: "1",
-    skip_disambig: "1",
-    t: "cortex-ai",
+    count: "8",
+    search_lang: "en",
+    result_filter: "web",
   });
+
   const resp = await fetch(
-    `https://api.duckduckgo.com/?${params.toString()}`,
+    `https://api.search.brave.com/res/v1/web/search?${params.toString()}`,
     {
-      headers: { "Accept-Language": "en-US,en;q=0.9" },
-      signal: AbortSignal.timeout(6000),
+      headers: {
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip",
+        "X-Subscription-Token": apiKey,
+      },
+      signal: AbortSignal.timeout(8000),
     }
   );
+
   if (!resp.ok) return [];
+
   const data = (await resp.json()) as {
-    AbstractText?: string;
-    AbstractURL?: string;
-    Heading?: string;
-    Results?: Array<{ FirstURL?: string; Text?: string }>;
-    RelatedTopics?: Array<{ FirstURL?: string; Text?: string }>;
+    web?: {
+      results?: Array<{
+        title?: string;
+        url?: string;
+        description?: string;
+      }>;
+    };
   };
 
-  const results: SearchResult[] = [];
-  if (data.AbstractText && data.AbstractURL) {
-    results.push({
-      url: data.AbstractURL,
-      title: data.Heading ?? query,
-      snippet: data.AbstractText.slice(0, 400),
-    });
-  }
-  for (const r of (data.Results ?? []).slice(0, 3)) {
-    if (r.FirstURL && r.Text) {
-      results.push({
-        url: r.FirstURL,
-        title: r.Text.split(" - ")[0].slice(0, 120),
-        snippet: r.Text.slice(0, 400),
-      });
-    }
-  }
-  for (const t of (data.RelatedTopics ?? []).slice(0, 4)) {
-    if (t.FirstURL && t.Text) {
-      results.push({
-        url: t.FirstURL,
-        title: t.Text.split(" - ")[0].slice(0, 120),
-        snippet: t.Text.slice(0, 400),
-      });
-    }
-  }
-  return results.slice(0, 5);
+  return (data.web?.results ?? [])
+    .filter(r => r.url && r.title)
+    .map(r => ({
+      url: r.url!,
+      title: r.title!,
+      snippet: (r.description ?? "").slice(0, 400),
+    }))
+    .slice(0, 6);
 }
 
-/** Combined search: DuckDuckGo + Wikipedia, deduplicated. */
+/**
+ * Combined search strategy:
+ *  1. Brave Web Search (if BRAVE_SEARCH_API_KEY is set) — real web results
+ *  2. Wikipedia — factual encyclopaedic coverage, run in parallel as supplement
+ *  3. If Brave is unavailable, falls back to Wikipedia-only results
+ * Results are deduplicated by URL and capped at 8.
+ */
 async function runWebSearch(query: string): Promise<SearchResult[]> {
-  const [ddg, wiki] = await Promise.allSettled([
-    duckduckgoSearch(query),
+  const hasBrave = Boolean(process.env["BRAVE_SEARCH_API_KEY"]);
+
+  const [braveResult, wikiResult] = await Promise.allSettled([
+    braveSearch(query),
     wikipediaSearch(query),
   ]);
-  const all = [
-    ...(ddg.status === "fulfilled" ? ddg.value : []),
-    ...(wiki.status === "fulfilled" ? wiki.value : []),
-  ];
+
+  const braveItems = braveResult.status === "fulfilled" ? braveResult.value : [];
+  const wikiItems = wikiResult.status === "fulfilled" ? wikiResult.value : [];
+
+  // If Brave returned results, use them as primary and supplement with Wikipedia.
+  // If Brave is not configured, fall back to Wikipedia alone.
+  const primary = hasBrave && braveItems.length > 0 ? braveItems : wikiItems;
+  const supplementary = hasBrave && braveItems.length > 0 ? wikiItems : [];
+
   const seen = new Set<string>();
-  return all
-    .filter(r => {
-      if (!r.url || seen.has(r.url)) return false;
-      seen.add(r.url);
-      return true;
-    })
-    .slice(0, 6);
+  const combined = [...primary, ...supplementary].filter(r => {
+    if (!r.url || seen.has(r.url)) return false;
+    seen.add(r.url);
+    return true;
+  });
+
+  return combined.slice(0, 8);
 }
 
 // ── Anthropic tool definition ─────────────────────────────────────────────────

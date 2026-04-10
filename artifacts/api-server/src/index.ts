@@ -19,6 +19,13 @@ if (Number.isNaN(port) || port <= 0) {
 await runStartupMigrations();
 logger.info("Database schema ready");
 
+if (!process.env["BRAVE_SEARCH_API_KEY"]) {
+  logger.warn(
+    "BRAVE_SEARCH_API_KEY is not set — web search will fall back to Wikipedia only. " +
+    "Get a free key at https://api.search.brave.com/app/dashboard"
+  );
+}
+
 app.listen(port, (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
