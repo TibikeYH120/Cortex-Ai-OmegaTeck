@@ -1,0 +1,66 @@
+8:45:36 AM: Netlify Build                                                 
+8:45:36 AM: ────────────────────────────────────────────────────────────────
+8:45:36 AM: ​
+8:45:36 AM: ❯ Version
+8:45:36 AM:   @netlify/build 35.11.2
+8:45:36 AM: ​
+8:45:36 AM: ❯ Flags
+8:45:36 AM:   accountId: 67cb2d3b486bf056f5fc8b62
+8:45:36 AM:   baseRelDir: true
+8:45:36 AM:   buildId: 69d89c83bbe1298f48625237
+8:45:36 AM:   deployId: 69d89c83bbe1298f48625239
+8:45:36 AM:   packagePath: artifacts/cortex-ai
+8:45:37 AM: Failed during stage 'building site': Build script returned non-zero exit code: 2 (https://ntl.fyi/exit-code-2)
+8:45:37 AM: ​
+8:45:37 AM: ❯ Current directory
+8:45:37 AM:   /opt/build/repo
+8:45:37 AM: ​
+8:45:37 AM: ❯ Config file
+8:45:37 AM:   No config file was defined: using default values.
+8:45:37 AM: ​
+8:45:37 AM: ❯ Context
+8:45:37 AM:   production
+8:45:37 AM: ​
+8:45:37 AM: Build command from Netlify app                                
+8:45:37 AM: ────────────────────────────────────────────────────────────────
+8:45:37 AM: ​
+8:45:37 AM: $ pnpm --filter @workspace/cortex-ai... run build
+8:45:37 AM: Scope: 2 of 11 workspace projects
+8:45:37 AM: artifacts/cortex-ai build$ vite build --config vite.config.ts
+8:45:37 AM: artifacts/cortex-ai build: failed to load config from /opt/build/repo/artifacts/cortex-ai/vite.config.ts
+8:45:37 AM: artifacts/cortex-ai build: error during build:
+8:45:37 AM: artifacts/cortex-ai build: Error: PORT environment variable is required but was not provided.
+8:45:37 AM: artifacts/cortex-ai build:     at file:///opt/build/repo/artifacts/cortex-ai/node_modules/.vite-temp/vite.config.ts.timestamp-1775803537469-114d1e40da9f1.mjs:10:9
+8:45:37 AM: artifacts/cortex-ai build:     at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+8:45:37 AM: artifacts/cortex-ai build:     at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+8:45:37 AM: artifacts/cortex-ai build:     at async loadConfigFromBundledFile (file:///opt/build/repo/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:35909:12)
+8:45:37 AM: artifacts/cortex-ai build:     at async bundleAndLoadConfigFile (file:///opt/build/repo/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:35797:17)
+8:45:37 AM: artifacts/cortex-ai build:     at async loadConfigFromFile (file:///opt/build/repo/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:35764:42)
+8:45:37 AM: artifacts/cortex-ai build:     at async resolveConfig (file:///opt/build/repo/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:35413:22)
+8:45:37 AM: artifacts/cortex-ai build:     at async createBuilder (file:///opt/build/repo/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:33875:19)
+8:45:37 AM: artifacts/cortex-ai build:     at async CAC.<anonymous> (file:///opt/build/repo/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/cli.js:629:10)
+8:45:37 AM: artifacts/cortex-ai build: Failed
+8:45:37 AM: /opt/build/repo/artifacts/cortex-ai:
+8:45:37 AM:  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/cortex-ai@0.0.0 build: `vite build --config vite.config.ts`
+8:45:37 AM: Exit status 1
+8:45:37 AM: ​
+8:45:37 AM: "build.command" failed                                        
+8:45:37 AM: ────────────────────────────────────────────────────────────────
+8:45:37 AM: ​
+8:45:37 AM:   Error message
+8:45:37 AM:   Command failed with exit code 1: pnpm --filter @workspace/cortex-ai... run build (https://ntl.fyi/exit-code-1)
+8:45:37 AM: ​
+8:45:37 AM:   Error location
+8:45:37 AM:   In Build command from Netlify app:
+8:45:37 AM:   pnpm --filter @workspace/cortex-ai... run build
+8:45:37 AM: ​
+8:45:37 AM:   Resolved config
+8:45:37 AM:   build:
+8:45:37 AM:     command: pnpm --filter @workspace/cortex-ai... run build
+8:45:37 AM:     commandOrigin: ui
+8:45:37 AM:     publish: /opt/build/repo/artifacts/cortex-ai/dist
+8:45:37 AM:     publishOrigin: ui
+8:45:37 AM: Build failed due to a user error: Build script returned non-zero exit code: 2
+8:45:37 AM: Failing build: Failed to build site
+8:45:38 AM: Finished processing build request in 13.432s
+8:46:55 AM: [ERROR] Deploy logs are currently unavailable. We are working on resolving the issue.
