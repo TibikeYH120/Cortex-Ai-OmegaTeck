@@ -11,12 +11,21 @@ const OPENAI_VOICE_MAP: Record<string, string> = {
 };
 
 function getOpenAIClient() {
-  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-  const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
-  if (!apiKey || !baseURL) {
-    throw new Error("AI_INTEGRATIONS_OPENAI_API_KEY or AI_INTEGRATIONS_OPENAI_BASE_URL is not set");
+  const integrationKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  const integrationBase = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+
+  if (integrationKey && integrationBase) {
+    return new OpenAI({ apiKey: integrationKey, baseURL: integrationBase });
   }
-  return new OpenAI({ apiKey, baseURL });
+
+  const directKey = process.env.OPENAI_API_KEY;
+  if (directKey) {
+    return new OpenAI({ apiKey: directKey });
+  }
+
+  throw new Error(
+    "No OpenAI API key found. Set OPENAI_API_KEY (or the Replit AI_INTEGRATIONS_OPENAI_* vars)."
+  );
 }
 
 router.post("/", async (req: Request, res: Response) => {

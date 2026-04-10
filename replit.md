@@ -46,13 +46,16 @@ Required secrets (set in Replit Secrets or Railway environment variables):
 |---|---|---|
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
 | `SESSION_SECRET` | Yes | Express session secret (throws in production if missing) |
-| `AI_INTEGRATIONS_ANTHROPIC_BASE_URL` | Yes | Anthropic proxy base URL |
-| `AI_INTEGRATIONS_ANTHROPIC_API_KEY` | Yes | Anthropic proxy API key |
-| `AI_INTEGRATIONS_GEMINI_BASE_URL` | Yes | Gemini proxy base URL (image generation) |
-| `AI_INTEGRATIONS_GEMINI_API_KEY` | Yes | Gemini proxy API key |
-| `TAVILY_API_KEY` | No | Tavily Search API key for real web search results (free: 1,000/month at https://app.tavily.com). Falls back to Wikipedia-only if not set. |
-| `AI_INTEGRATIONS_OPENAI_BASE_URL` | Yes | OpenAI proxy base URL (auto-provisioned via Replit AI Integrations — for TTS/STT) |
-| `AI_INTEGRATIONS_OPENAI_API_KEY` | Yes | OpenAI proxy API key (auto-provisioned via Replit AI Integrations — for TTS/STT) |
+| `AI_INTEGRATIONS_ANTHROPIC_BASE_URL` | Replit only | Anthropic proxy base URL (auto-provisioned by Replit AI Integrations) |
+| `AI_INTEGRATIONS_ANTHROPIC_API_KEY` | Replit only | Anthropic proxy API key (auto-provisioned by Replit AI Integrations) |
+| `ANTHROPIC_API_KEY` | Railway/external | Direct Anthropic API key — used when `AI_INTEGRATIONS_*` vars are absent |
+| `AI_INTEGRATIONS_GEMINI_BASE_URL` | Replit only | Gemini proxy base URL (auto-provisioned by Replit AI Integrations) |
+| `AI_INTEGRATIONS_GEMINI_API_KEY` | Replit only | Gemini proxy API key (auto-provisioned by Replit AI Integrations) |
+| `GEMINI_API_KEY` | Railway/external | Direct Gemini API key — used when `AI_INTEGRATIONS_*` vars are absent |
+| `AI_INTEGRATIONS_OPENAI_BASE_URL` | Replit only | OpenAI proxy base URL (auto-provisioned by Replit AI Integrations — TTS/STT) |
+| `AI_INTEGRATIONS_OPENAI_API_KEY` | Replit only | OpenAI proxy API key (auto-provisioned by Replit AI Integrations — TTS/STT) |
+| `OPENAI_API_KEY` | Railway/external | Direct OpenAI API key — used when `AI_INTEGRATIONS_*` vars are absent |
+| `TAVILY_API_KEY` | No | Tavily Search API key (free: 1,000/month at https://app.tavily.com). Falls back to Wikipedia-only if not set. |
 
 ## Applications
 
@@ -97,9 +100,10 @@ Express 5 API server. Routes:
 
 ## Database Schema
 
-- `users` — id, name, email, passwordHash, role, bio, createdAt
-- `conversations` — id, title, createdAt
-- `messages` — id, conversationId, role, content, createdAt
+- `users` — id, name, email, passwordHash, role, bio, systemAbout, systemRespond, createdAt
+- `conversations` — id, title, userId, guestSessionId, createdAt
+- `messages` — id, conversationId, role, content, imageData, imageAttachment, createdAt
+- `session` — created automatically by connect-pg-simple (`createTableIfMissing: true`)
 
 ## TypeScript & Composite Projects
 
@@ -140,8 +144,7 @@ Database layer using Drizzle ORM with PostgreSQL.
 
 ### `lib/integrations-anthropic-ai` (`@workspace/integrations-anthropic-ai`)
 
-Anthropic AI client wrapper using Replit AI Integrations.
-- Requires `AI_INTEGRATIONS_ANTHROPIC_BASE_URL` and `AI_INTEGRATIONS_ANTHROPIC_API_KEY` env vars
+Anthropic AI client wrapper. Dual-mode: uses Replit AI Integrations proxy (`AI_INTEGRATIONS_ANTHROPIC_*`) when available, falls back to direct `ANTHROPIC_API_KEY` for Railway/external deployments.
 - Exports: `anthropic` client, `batchProcess`, `batchProcessWithSSE`
 
 ### `lib/api-spec` (`@workspace/api-spec`)

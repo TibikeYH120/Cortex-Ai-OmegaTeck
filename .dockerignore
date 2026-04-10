@@ -6,9 +6,12 @@ replit.nix
 replit.md
 attached_assets
 node_modules
-artifacts/*/node_modules
+**/node_modules
 artifacts/*/dist
 lib/*/node_modules
 scripts/node_modules
+artifacts/mockup-sandbox
 *.log
 *.map
+.env
+.env.*

@@ -28,10 +28,18 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 `;
 
+const ALTER_SQL = `
+ALTER TABLE users ADD COLUMN IF NOT EXISTS system_about TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS system_respond TEXT;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS image_data TEXT;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS image_attachment TEXT;
+`;
+
 export async function runStartupMigrations(): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query(STARTUP_SQL);
+    await client.query(ALTER_SQL);
   } finally {
     client.release();
   }
