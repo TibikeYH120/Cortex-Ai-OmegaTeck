@@ -1,16 +1,20 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import multer from "multer";
+import OpenAI, { toFile } from "openai";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
-router.post("/", upload.single("audio"), async (req: Request, res: Response) => {
-  const apiKey = process.env.ELEVENLABS_API_KEY;
-  if (!apiKey) {
-    res.status(503).json({ error: "STT service not configured" });
-    return;
+function getOpenAIClient() {
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+  if (!apiKey || !baseURL) {
+    throw new Error("AI_INTEGRATIONS_OPENAI_API_KEY or AI_INTEGRATIONS_OPENAI_BASE_URL is not set");
   }
+  return new OpenAI({ apiKey, baseURL });
+}
 
+router.post("/", upload.single("audio"), async (req: Request, res: Response) => {
   const file = req.file;
   if (!file) {
     res.status(400).json({ error: "audio file is required" });
@@ -18,29 +22,22 @@ router.post("/", upload.single("audio"), async (req: Request, res: Response) => 
   }
 
   try {
-    const formData = new FormData();
-    const blob = new Blob([file.buffer], { type: file.mimetype || "audio/webm" });
-    formData.append("file", blob, file.originalname || "audio.webm");
-    formData.append("model_id", "scribe_v1");
+    const openai = getOpenAIClient();
 
-    const elRes = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
-      method: "POST",
-      headers: {
-        "xi-api-key": apiKey,
-      },
-      body: formData,
+    const audioFile = await toFile(
+      file.buffer,
+      file.originalname || "recording.webm",
+      { type: file.mimetype || "audio/webm" },
+    );
+
+    const transcription = await openai.audio.transcriptions.create({
+      model: "gpt-4o-mini-transcribe",
+      file: audioFile,
+      response_format: "json",
     });
 
-    if (!elRes.ok) {
-      const errBody = await elRes.text();
-      req.log.error({ status: elRes.status, errBody }, "ElevenLabs STT error");
-      res.status(502).json({ error: "STT upstream error" });
-      return;
-    }
-
-    const data = await elRes.json() as { text?: string };
-    res.json({ transcript: data.text || "" });
-  } catch (err) {
+    res.json({ transcript: transcription.text || "" });
+  } catch (err: unknown) {
     req.log.error({ err }, "STT route error");
     res.status(500).json({ error: "STT failed" });
   }

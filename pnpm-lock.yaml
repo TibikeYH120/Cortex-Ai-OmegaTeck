@@ -6,69 +6,12 @@ settings:
 
 catalogs:
   default:
-    '@replit/vite-plugin-cartographer':
-      specifier: ^0.5.1
-      version: 0.5.1
-    '@replit/vite-plugin-dev-banner':
-      specifier: ^0.1.1
-      version: 0.1.2
-    '@replit/vite-plugin-runtime-error-modal':
-      specifier: ^0.0.6
-      version: 0.0.6
-    '@tailwindcss/vite':
-      specifier: ^4.1.14
-      version: 4.2.1
-    '@tanstack/react-query':
-      specifier: ^5.90.21
-      version: 5.90.21
     '@types/node':
       specifier: ^25.3.3
       version: 25.3.5
-    '@types/react':
-      specifier: ^19.2.0
-      version: 19.2.14
-    '@types/react-dom':
-      specifier: ^19.2.0
-      version: 19.2.3
-    '@vitejs/plugin-react':
-      specifier: ^5.0.4
-      version: 5.1.4
-    class-variance-authority:
-      specifier: ^0.7.1
-      version: 0.7.1
-    clsx:
-      specifier: 2.1.1
-      version: 2.1.1
     drizzle-orm:
       specifier: ^0.45.1
       version: 0.45.1
-    framer-motion:
-      specifier: 12.35.1
-      version: 12.35.1
-    lucide-react:
-      specifier: 0.545.0
-      version: 0.545.0
-    react:
-      specifier: 19.1.0
-      version: 19.1.0
-    react-dom:
-      specifier: 19.1.0
-      version: 19.1.0
-    tailwind-merge:
-      specifier: 3.5.0
-      version: 3.5.0
-    tailwindcss:
-      specifier: ^4.1.14
-      version: 4.2.1
-    tsx:
-      specifier: ^4.21.0
-      version: 4.21.0
-    vite:
-      specifier: ^7.3.0
-      version: 7.3.1
-    zod:
-      specifier: ^3.25.76
-      version: 3.25.76
 
 overrides:
   esbuild>@esbuild/darwin-arm64: '-'
@@ -169,9 +112,6 @@ importers:
       '@google/genai':
         specifier: ^1.46.0
         version: 1.46.0
-      '@replit/connectors-sdk':
-        specifier: ^0.4.0
-        version: 0.4.0
       '@types/connect-pg-simple':
         specifier: ^7.0.3
         version: 7.0.3
@@ -214,6 +154,9 @@ importers:
       multer:
         specifier: ^2.1.1
         version: 2.1.1
+      openai:
+        specifier: ^6.34.0
+        version: 6.34.0(ws@8.20.0)
       p-limit:
         specifier: ^7.3.0
         version: 7.3.0
@@ -1787,9 +1730,6 @@ packages:
   '@radix-ui/rect@1.1.1':
     resolution: {integrity: sha512-HPwpGIzkl28mWyZqG52jiqDJ12waP11Pa1lGoiyUkIEuMLBP0oeK/C89esbXrxsky5we7dfd8U58nm0SgAWpVw==}
 
-  '@replit/connectors-sdk@0.4.0':
-    resolution: {integrity: sha512-wRuktfdoBsM19NJUi24xzCkQ+idglmU4Cq2ZWvTAnNUVGdcMmn3rLN1F1/MNZCc2HdG+awcGa81XMLpZXZujUg==}
-
   '@replit/vite-plugin-cartographer@0.5.1':
     resolution: {integrity: sha512-KiaQMx4ssTM8hSjMFscyIV1PN1bRVCWCFqN3fXOfXa39uFFCKUaeL3VvH/sxuy7S7ET+MCFOt+J7lLtL56bRrA==}
 
@@ -3196,6 +3136,18 @@ packages:
 
   once@1.4.0:
     resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
+
+  openai@6.34.0:
+    resolution: {integrity: sha512-yEr2jdGf4tVFYG6ohmr3pF6VJuveP0EA/sS8TBx+4Eq5NT10alu5zg2dmxMXMgqpihRDQlFGpRt2XwsGj+Fyxw==}
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
 
   orval@8.5.3:
     resolution: {integrity: sha512-+8Es2ZR3tPthzAL27X1a9AlboqTQ/w9U/PhMkp4vsLA9OvdkpXr+9f8lCfJUV/wtdX+lXBDQ4imx42Em943JSg==}
@@ -5114,8 +5066,6 @@ snapshots:
 
   '@radix-ui/rect@1.1.1': {}
 
-  '@replit/connectors-sdk@0.4.0': {}
-
   '@replit/vite-plugin-cartographer@0.5.1':
     dependencies:
       '@babel/parser': 7.29.0
@@ -6650,6 +6600,10 @@ snapshots:
   once@1.4.0:
     dependencies:
       wrappy: 1.0.2
+
+  openai@6.34.0(ws@8.20.0):
+    optionalDependencies:
+      ws: 8.20.0
 
   orval@8.5.3(prettier@3.8.1)(typescript@5.9.3):
     dependencies:

@@ -32,4 +32,3 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
-ELEVENLABS_API_KEY = "sk_498ee4763f27b36513f70159987145ca9af3cae5c53c1f5d"

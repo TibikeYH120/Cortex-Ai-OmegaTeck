@@ -2,9 +2,9 @@ import { useState, useRef, useCallback, useEffect } from "react";
 
 export const VOICE_OPTIONS = [
   { id: "nova", label: "Nova", desc: "Warm & clear", color: "#00d0ff" },
-  { id: "aria", label: "Aria", desc: "Expressive & vivid", color: "#6c3bff" },
-  { id: "echo", label: "Echo", desc: "Calm & deep", color: "#ff2e7e" },
-  { id: "orion", label: "Orion", desc: "Confident & bold", color: "#00ff88" },
+  { id: "aria", label: "Aria", desc: "Bright & expressive", color: "#6c3bff" },
+  { id: "echo", label: "Echo", desc: "Calm & measured", color: "#ff2e7e" },
+  { id: "orion", label: "Orion", desc: "Deep & confident", color: "#00ff88" },
 ] as const;
 
 export type VoiceId = (typeof VOICE_OPTIONS)[number]["id"];

@@ -1,13 +1,23 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import OpenAI from "openai";
 
 const router: IRouter = Router();
 
-const VOICE_IDS: Record<string, string> = {
-  nova: "21m00Tcm4TlvDq8ikWAM",
-  aria: "9BWtsMINqrJLrRacOk9x",
-  echo: "TxGEqnHWrfWFTfGW9XjX",
-  orion: "pNInz6obpgDQGcFmaJgB",
+const OPENAI_VOICE_MAP: Record<string, string> = {
+  nova: "nova",
+  aria: "shimmer",
+  echo: "echo",
+  orion: "onyx",
 };
+
+function getOpenAIClient() {
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+  if (!apiKey || !baseURL) {
+    throw new Error("AI_INTEGRATIONS_OPENAI_API_KEY or AI_INTEGRATIONS_OPENAI_BASE_URL is not set");
+  }
+  return new OpenAI({ apiKey, baseURL });
+}
 
 router.post("/", async (req: Request, res: Response) => {
   const { text, voiceId } = req.body as { text?: string; voiceId?: string };
@@ -17,52 +27,39 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  const apiKey = process.env.ELEVENLABS_API_KEY;
-  if (!apiKey) {
-    res.status(503).json({ error: "TTS service not configured" });
-    return;
-  }
-
-  const resolvedVoiceId =
-    (voiceId && VOICE_IDS[voiceId]) ? VOICE_IDS[voiceId] :
-    voiceId && Object.values(VOICE_IDS).includes(voiceId) ? voiceId :
-    VOICE_IDS.nova;
+  const openaiVoice = (voiceId && OPENAI_VOICE_MAP[voiceId]) || "nova";
 
   try {
-    const elRes = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${resolvedVoiceId}`,
-      {
-        method: "POST",
-        headers: {
-          "xi-api-key": apiKey,
-          "Content-Type": "application/json",
-          Accept: "audio/mpeg",
-        },
-        body: JSON.stringify({
-          text: text.trim().slice(0, 5000),
-          model_id: "eleven_turbo_v2_5",
-          voice_settings: {
-            stability: 0.45,
-            similarity_boost: 0.75,
-            style: 0.05,
-            use_speaker_boost: true,
-          },
-        }),
-      },
-    );
+    const openai = getOpenAIClient();
 
-    if (!elRes.ok) {
-      const errBody = await elRes.text();
-      req.log.error({ status: elRes.status, errBody }, "ElevenLabs TTS error");
-      res.status(502).json({ error: "TTS upstream error" });
+    const response = await openai.chat.completions.create({
+      model: "gpt-audio-mini",
+      modalities: ["text", "audio"],
+      audio: { voice: openaiVoice as "nova" | "shimmer" | "echo" | "onyx", format: "mp3" },
+      messages: [
+        {
+          role: "system",
+          content: "You are a text-to-speech assistant. Read the user's text aloud exactly as written, word for word, without adding any commentary, acknowledgments, or extra words.",
+        },
+        {
+          role: "user",
+          content: text.trim().slice(0, 4000),
+        },
+      ],
+    });
+
+    const audioData = response.choices[0]?.message?.audio?.data;
+    if (!audioData) {
+      req.log.error({ response }, "No audio data in TTS response");
+      res.status(502).json({ error: "No audio in response" });
       return;
     }
 
-    const audioBuffer = await elRes.arrayBuffer();
+    const audioBuffer = Buffer.from(audioData, "base64");
     res.setHeader("Content-Type", "audio/mpeg");
     res.setHeader("Cache-Control", "no-store");
-    res.send(Buffer.from(audioBuffer));
-  } catch (err) {
+    res.send(audioBuffer);
+  } catch (err: unknown) {
     req.log.error({ err }, "TTS route error");
     res.status(500).json({ error: "TTS failed" });
   }

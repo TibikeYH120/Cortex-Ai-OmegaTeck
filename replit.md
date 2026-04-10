@@ -51,23 +51,32 @@ Required secrets (set in Replit Secrets or Railway environment variables):
 | `AI_INTEGRATIONS_GEMINI_BASE_URL` | Yes | Gemini proxy base URL (image generation) |
 | `AI_INTEGRATIONS_GEMINI_API_KEY` | Yes | Gemini proxy API key |
 | `TAVILY_API_KEY` | No | Tavily Search API key for real web search results (free: 1,000/month at https://app.tavily.com). Falls back to Wikipedia-only if not set. |
+| `AI_INTEGRATIONS_OPENAI_BASE_URL` | Yes | OpenAI proxy base URL (auto-provisioned via Replit AI Integrations — for TTS/STT) |
+| `AI_INTEGRATIONS_OPENAI_API_KEY` | Yes | OpenAI proxy API key (auto-provisioned via Replit AI Integrations — for TTS/STT) |
 
 ## Applications
 
 ### CORTEX AI (`artifacts/cortex-ai`)
 
-Full-stack AI chat application — Hungarian-language interface. Features:
+Full-stack AI chat application. Features:
 - Auth screen: Login / Register / Guest mode
 - Chat with Claude Sonnet (claude-sonnet-4-6) branded as "Cortex AI"
 - Conversation history with database persistence
+- Live code preview in markdown code blocks
+- AI image generation via Gemini (triggered by `[GENERATE_IMAGE: ...]`)
+- Real web search via Tavily API (auto-triggered when needed)
+- **Voice TTS**: hover any AI message → speaker icon → hear it read aloud (4 voices)
+- **Voice STT**: mic button in chat input → speak → transcript inserted into text box
+- **Voice settings**: Settings → Voice tab (voice selector, auto-read toggle)
 - Profile system (name, bio, password change, account stats)
-- Settings modal (AI model, appearance, notifications, about)
+- Settings modal (AI model, voice, appearance, notifications, about)
 - AI-generated Cortex avatar (`public/cortex-avatar.png`)
 - Deterministic SVG user avatars (unique per email/name via `AvatarUtils.tsx`)
 - Modals rendered via React portals to avoid stacking context issues
 - PostgreSQL session store via `connect-pg-simple`
 - Collapsible sidebar on desktop, mobile hamburger menu
 - Dark cyberpunk design (OmegaTeck brand)
+- PWA manifest + iOS meta tags
 
 ### API Server (`artifacts/api-server`)
 
@@ -82,6 +91,9 @@ Express 5 API server. Routes:
 - `GET|POST /api/anthropic/conversations` — conversation CRUD
 - `GET|DELETE /api/anthropic/conversations/:id` — single conversation
 - `GET|POST /api/anthropic/conversations/:id/messages` — messages + SSE stream
+- `POST /api/tts` — text-to-speech via OpenAI gpt-audio-mini (returns audio/mpeg)
+- `POST /api/stt` — speech-to-text via OpenAI gpt-4o-mini-transcribe (returns {transcript})
+- `POST /api/image/generate` — AI image generation via Gemini
 
 ## Database Schema
 
