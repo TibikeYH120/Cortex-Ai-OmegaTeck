@@ -152,6 +152,14 @@ export function ChatArea() {
     if (streamingContent) scrollToBottom(false);
   }, [streamingContent, scrollToBottom]);
 
+  useEffect(() => {
+    return () => {
+      if (scrollRafRef.current !== null) {
+        cancelAnimationFrame(scrollRafRef.current);
+      }
+    };
+  }, []);
+
   const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
   const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 

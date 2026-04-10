@@ -21,6 +21,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
   const [streamingContent, setStreamingContent] = useState("");
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const isSearchingRef = useRef(false);
   const queryClient = useQueryClient();
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -60,6 +61,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
     setIsStreaming(true);
     setStreamingContent("");
     setIsSearching(false);
+    isSearchingRef.current = false;
     pendingTextRef.current = "";
     let fullText = "";
     let usedSearch = false;
@@ -100,6 +102,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
               const data = JSON.parse(dataStr);
 
               if (data.searching) {
+                isSearchingRef.current = true;
                 setIsSearching(true);
                 continue;
               }
@@ -115,7 +118,10 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
               }
 
               if (data.content) {
-                if (isSearching) setIsSearching(false);
+                if (isSearchingRef.current) {
+                  isSearchingRef.current = false;
+                  setIsSearching(false);
+                }
                 fullText += data.content;
                 scheduleStreamUpdate(fullText);
               }
@@ -170,6 +176,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
     } finally {
       cancelPendingFlush();
       setIsStreaming(false);
+      isSearchingRef.current = false;
       setIsSearching(false);
       setStreamingContent("");
     }
@@ -180,6 +187,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
       abortControllerRef.current.abort();
       cancelPendingFlush();
       setIsStreaming(false);
+      isSearchingRef.current = false;
       setIsSearching(false);
       setStreamingContent("");
     }
