@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { conversations, messages } from "@workspace/db";
+import { conversations, messages, usersTable } from "@workspace/db";
 import { eq, asc, desc } from "drizzle-orm";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import type {
@@ -325,11 +325,24 @@ async function runStreamingConversation(
   return { fullText, usedSearch: true, sources };
 }
 
+// ── System prompt builder ─────────────────────────────────────────────────────
+
+function buildSystemPrompt(systemAbout?: string | null, systemRespond?: string | null): string {
+  let prompt = BASE_SYSTEM_PROMPT;
+  if (systemAbout?.trim()) {
+    prompt += `\n\n--- USER CONTEXT (always keep in mind) ---\n${systemAbout.trim()}`;
+  }
+  if (systemRespond?.trim()) {
+    prompt += `\n\n--- RESPONSE STYLE PREFERENCES ---\n${systemRespond.trim()}`;
+  }
+  return prompt;
+}
+
 // ── Express router ────────────────────────────────────────────────────────────
 
 const router: IRouter = Router();
 
-const SYSTEM_PROMPT = `You are CORTEX AI, the advanced artificial intelligence assistant of OmegaTeck Technology.
+const BASE_SYSTEM_PROMPT = `You are CORTEX AI, the advanced artificial intelligence assistant of OmegaTeck Technology.
 
 OmegaTeck Technology is an innovative tech company. Founder and creative director: Tibor. Projects: OmegaHumanity, VoidExio. Focus: game development, web development, creative technology, AI integration.
 
@@ -461,9 +474,11 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
-  const { content, imageAttachment } = req.body as {
+  const { content, imageAttachment, systemAbout: guestAbout, systemRespond: guestRespond } = req.body as {
     content?: string;
     imageAttachment?: string;
+    systemAbout?: string;
+    systemRespond?: string;
   };
   if (!content && !imageAttachment) {
     res.status(400).json({ error: "Message content is required" });
@@ -502,6 +517,23 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
     if (!conv) { res.status(404).json({ error: "Not found" }); return; }
     const owner = getOwner(req);
     if (!isOwner(conv, owner)) { res.status(403).json({ error: "Forbidden" }); return; }
+
+    // Resolve system instructions (DB for logged-in users, POST body for guests)
+    let systemAbout: string | null = null;
+    let systemRespond: string | null = null;
+    if (owner.type === "user") {
+      const [userRow] = await db
+        .select({ systemAbout: usersTable.systemAbout, systemRespond: usersTable.systemRespond })
+        .from(usersTable)
+        .where(eq(usersTable.id, owner.userId))
+        .limit(1);
+      systemAbout = userRow?.systemAbout ?? null;
+      systemRespond = userRow?.systemRespond ?? null;
+    } else {
+      systemAbout = typeof guestAbout === "string" ? guestAbout.trim().slice(0, 500) || null : null;
+      systemRespond = typeof guestRespond === "string" ? guestRespond.trim().slice(0, 500) || null : null;
+    }
+    const effectiveSystemPrompt = buildSystemPrompt(systemAbout, systemRespond);
 
     // Persist only text — base64 images are ephemeral and too large for DB storage.
     await db.insert(messages).values({ conversationId: id, role: "user", content: textContent });
@@ -555,7 +587,7 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
       const stream = anthropic.messages.stream({
         model: "claude-sonnet-4-6",
         max_tokens: 8192,
-        system: SYSTEM_PROMPT,
+        system: effectiveSystemPrompt,
         messages: chatMessages,
       });
       let text = "";
@@ -573,7 +605,7 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
       sources = [];
     } else {
       ({ fullText: fullResponse, usedSearch, sources } =
-        await runStreamingConversation(chatMessages, SYSTEM_PROMPT, res, req.log));
+        await runStreamingConversation(chatMessages, effectiveSystemPrompt, res, req.log));
     }
 
     await db.insert(messages).values({

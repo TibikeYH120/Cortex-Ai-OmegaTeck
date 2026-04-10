@@ -12,7 +12,16 @@ router.get("/", async (req: Request, res: Response) => {
   try {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!user) { res.status(404).json({ error: "Felhasználó nem található" }); return; }
-    res.json({ id: user.id, name: user.name, email: user.email, role: user.role, bio: user.bio ?? null, createdAt: user.createdAt });
+    res.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      bio: user.bio ?? null,
+      systemAbout: user.systemAbout ?? null,
+      systemRespond: user.systemRespond ?? null,
+      createdAt: user.createdAt,
+    });
   } catch (err) {
     req.log.error({ err }, "Get profile error");
     res.status(500).json({ error: "Szerver hiba" });
@@ -22,13 +31,32 @@ router.get("/", async (req: Request, res: Response) => {
 router.put("/", async (req: Request, res: Response) => {
   const userId = req.session.userId;
   if (!userId) { res.status(401).json({ error: "Nincs bejelentkezve" }); return; }
-  const { name, bio } = req.body;
+  const { name, bio, systemAbout, systemRespond } = req.body as {
+    name?: string;
+    bio?: string;
+    systemAbout?: string;
+    systemRespond?: string;
+  };
   try {
     const [user] = await db.update(usersTable)
-      .set({ name: name || undefined, bio: bio !== undefined ? bio : undefined })
+      .set({
+        name: name || undefined,
+        bio: bio !== undefined ? bio : undefined,
+        systemAbout: systemAbout !== undefined ? (systemAbout.trim().slice(0, 500) || null) : undefined,
+        systemRespond: systemRespond !== undefined ? (systemRespond.trim().slice(0, 500) || null) : undefined,
+      })
       .where(eq(usersTable.id, userId))
       .returning();
-    res.json({ id: user.id, name: user.name, email: user.email, role: user.role, bio: user.bio ?? null, createdAt: user.createdAt });
+    res.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      bio: user.bio ?? null,
+      systemAbout: user.systemAbout ?? null,
+      systemRespond: user.systemRespond ?? null,
+      createdAt: user.createdAt,
+    });
   } catch (err) {
     req.log.error({ err }, "Update profile error");
     res.status(500).json({ error: "Szerver hiba" });

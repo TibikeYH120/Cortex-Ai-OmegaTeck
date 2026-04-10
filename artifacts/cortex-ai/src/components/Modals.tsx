@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   X, Save, ShieldAlert, User, Cpu, Wifi, Lock, BarChart3,
   Eye, EyeOff, CheckCircle2, AlertCircle, MessageSquare, Zap, Shield,
-  Info, Globe, Volume2, Palette, Key, Mic, Play, Square, Loader2
+  Info, Globe, Volume2, Palette, Key, Mic, Play, Square, Loader2, BookOpen
 } from "lucide-react";
 import { useGetProfile, useUpdateProfile, getGetProfileQueryKey, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useAppState } from "@/hooks/use-app-state";
@@ -398,13 +398,59 @@ const VOICE_STORAGE_KEY = "cortex_voice_id";
 const AUTO_READ_STORAGE_KEY = "cortex_voice_auto_read";
 
 export function SettingsModal({ open, onOpenChange }: ModalProps) {
-  const [settingsTab, setSettingsTab] = useState<"ai" | "voice" | "appearance" | "notifications" | "about">("ai");
+  const [settingsTab, setSettingsTab] = useState<"ai" | "voice" | "instructions" | "appearance" | "notifications" | "about">("ai");
   const [streamingMode, setStreamingMode] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
   const [showTimestamps, setShowTimestamps] = useState(true);
   const [compactMode, setCompactMode] = useState(false);
   const [codeHighlight, setCodeHighlight] = useState(true);
+
+  const { isGuest } = useAppState();
+  const updateMutation = useUpdateProfile();
+  const queryClient = useQueryClient();
+
+  const [sysAbout, setSysAbout] = useState<string>(() => {
+    try { return localStorage.getItem("cortex_sys_about") ?? ""; } catch { return ""; }
+  });
+  const [sysRespond, setSysRespond] = useState<string>(() => {
+    try { return localStorage.getItem("cortex_sys_respond") ?? ""; } catch { return ""; }
+  });
+  const [isSavingInstructions, setIsSavingInstructions] = useState(false);
+  const [savedInstructions, setSavedInstructions] = useState(false);
+
+  const { data: profileForInstructions } = useGetProfile({
+    query: { enabled: open && !isGuest && settingsTab === "instructions" }
+  });
+
+  useEffect(() => {
+    if (profileForInstructions) {
+      const about = (profileForInstructions as any).systemAbout ?? "";
+      const respond = (profileForInstructions as any).systemRespond ?? "";
+      setSysAbout(about);
+      setSysRespond(respond);
+      try {
+        localStorage.setItem("cortex_sys_about", about);
+        localStorage.setItem("cortex_sys_respond", respond);
+      } catch {}
+    }
+  }, [profileForInstructions]);
+
+  const handleSaveInstructions = async () => {
+    try { localStorage.setItem("cortex_sys_about", sysAbout); } catch {}
+    try { localStorage.setItem("cortex_sys_respond", sysRespond); } catch {}
+    if (!isGuest) {
+      setIsSavingInstructions(true);
+      try {
+        await updateMutation.mutateAsync({ data: { systemAbout: sysAbout, systemRespond: sysRespond } as any });
+        queryClient.invalidateQueries({ queryKey: getGetProfileQueryKey() });
+      } finally {
+        setIsSavingInstructions(false);
+      }
+    }
+    setSavedInstructions(true);
+    setTimeout(() => setSavedInstructions(false), 2000);
+  };
 
   const [selectedVoice, setSelectedVoice] = useState<VoiceId>(() => {
     try {
@@ -478,6 +524,7 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
   const tabs = [
     { id: "ai", label: "AI Model", icon: <Cpu size={13} /> },
     { id: "voice", label: "Voice", icon: <Mic size={13} /> },
+    { id: "instructions", label: "Instructions", icon: <BookOpen size={13} /> },
     { id: "appearance", label: "Appearance", icon: <Palette size={13} /> },
     { id: "notifications", label: "Notifications", icon: <Volume2 size={13} /> },
     { id: "about", label: "About", icon: <Info size={13} /> },
@@ -588,6 +635,89 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
                   <Mic size={13} className="text-[#00d0ff]/40 mb-2" />
                   Click the speaker icon on any AI message to hear it read aloud. Use the mic button in the chat input for voice input. Powered by OpenAI.
                 </div>
+              </div>
+            )}
+
+            {settingsTab === "instructions" && (
+              <div className="space-y-5">
+                {/* About section */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <User size={13} className="text-[#00d0ff]" />
+                    <span className="text-xs font-semibold text-white/80">What should CORTEX AI know about you?</span>
+                  </div>
+                  <div className="text-[10px] font-mono text-muted/50 mb-2">
+                    Your background, expertise, location, or anything the AI should always keep in mind.
+                  </div>
+                  <div className="relative">
+                    <textarea
+                      value={sysAbout}
+                      onChange={e => setSysAbout(e.target.value.slice(0, 500))}
+                      placeholder={"e.g. I'm a software engineer who works with Python and TypeScript. I prefer concise, direct answers with code examples."}
+                      rows={4}
+                      className="w-full rounded-xl text-sm text-foreground resize-none px-4 py-3 outline-none transition-all focus:shadow-[0_0_0_2px_rgba(0,208,255,0.25)]"
+                      style={{ background: "#10101f", border: "1px solid rgba(255,255,255,0.07)", caretColor: "#00d0ff" }}
+                    />
+                    <span className="absolute bottom-2 right-3 text-[10px] font-mono text-muted/40 tabular-nums">
+                      {sysAbout.length}/500
+                    </span>
+                  </div>
+                </div>
+
+                {/* Respond section */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <MessageSquare size={13} className="text-[#6c3bff]" />
+                    <span className="text-xs font-semibold text-white/80">How should CORTEX AI respond?</span>
+                  </div>
+                  <div className="text-[10px] font-mono text-muted/50 mb-2">
+                    Preferred tone, language, response length, or formatting style.
+                  </div>
+                  <div className="relative">
+                    <textarea
+                      value={sysRespond}
+                      onChange={e => setSysRespond(e.target.value.slice(0, 500))}
+                      placeholder={"e.g. Always respond in Hungarian. Keep answers short and to the point. Avoid unnecessary filler phrases."}
+                      rows={4}
+                      className="w-full rounded-xl text-sm text-foreground resize-none px-4 py-3 outline-none transition-all focus:shadow-[0_0_0_2px_rgba(108,59,255,0.25)]"
+                      style={{ background: "#10101f", border: "1px solid rgba(255,255,255,0.07)", caretColor: "#6c3bff" }}
+                    />
+                    <span className="absolute bottom-2 right-3 text-[10px] font-mono text-muted/40 tabular-nums">
+                      {sysRespond.length}/500
+                    </span>
+                  </div>
+                </div>
+
+                {/* Save button */}
+                <button
+                  onClick={handleSaveInstructions}
+                  disabled={isSavingInstructions}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    background: savedInstructions
+                      ? "linear-gradient(135deg, #00ff88, #00d0ff)"
+                      : "linear-gradient(135deg, #00d0ff, #6c3bff)",
+                    color: "#000",
+                    boxShadow: savedInstructions
+                      ? "0 0 20px rgba(0,255,136,0.3)"
+                      : "0 0 20px rgba(0,208,255,0.2)",
+                  }}
+                >
+                  {isSavingInstructions ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : savedInstructions ? (
+                    <CheckCircle2 size={14} />
+                  ) : (
+                    <Save size={14} />
+                  )}
+                  {isSavingInstructions ? "Saving…" : savedInstructions ? "Saved!" : "Save Instructions"}
+                </button>
+
+                {isGuest && (
+                  <div className="px-4 py-3 rounded-xl text-[11px] text-muted/60 font-mono text-center" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                    Sign in to sync instructions across devices
+                  </div>
+                )}
               </div>
             )}
 

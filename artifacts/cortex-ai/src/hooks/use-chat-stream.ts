@@ -93,12 +93,19 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
 
     abortControllerRef.current = new AbortController();
 
+    let systemAbout: string | null = null;
+    let systemRespond: string | null = null;
+    try {
+      systemAbout = localStorage.getItem("cortex_sys_about");
+      systemRespond = localStorage.getItem("cortex_sys_respond");
+    } catch {}
+
     try {
       const response = await fetch(`/api/anthropic/conversations/${targetId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ content, imageAttachment }),
+        body: JSON.stringify({ content, imageAttachment, systemAbout, systemRespond }),
         signal: abortControllerRef.current.signal,
       });
 
