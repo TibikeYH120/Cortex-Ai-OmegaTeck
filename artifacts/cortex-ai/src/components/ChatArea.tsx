@@ -39,10 +39,15 @@ export function ChatArea() {
 
   const createMutation = useCreateAnthropicConversation();
 
+  // Set to true just before the newly streamed AI message is committed to localMessages.
+  // Consumed (and reset) inside renderedMessages useMemo to skip the entry animation once.
+  const skipNextEntryRef = useRef(false);
+
   const { sendMessage, isStreaming, isGenerating, streamingContent, stopStream, isGeneratingImage, isSearching } = useChatStream({
     conversationId: activeConversationId,
     onFinished: (fullContent, usedSearch, sources) => {
       if (fullContent) {
+        skipNextEntryRef.current = true;
         setLocalMessages(prev => [...prev, {
           id: Date.now(),
           role: "assistant",
@@ -271,11 +276,26 @@ export function ChatArea() {
 
   const showWelcome = !activeConversationId && localMessages.length === 0;
 
-  const renderedMessages = useMemo(() => (
-    localMessages.map((msg, i) => (
-      <MessageBubble key={msg.id || i} message={msg} user={user} />
-    ))
-  ), [localMessages, user]);
+  const renderedMessages = useMemo(() => {
+    // Consume the skip-animation flag on the first render after streaming finishes.
+    // Reading and resetting a ref inside useMemo is safe here: refs don't trigger
+    // re-renders, and the flag is only ever set synchronously before setLocalMessages.
+    const skipLast = skipNextEntryRef.current;
+    skipNextEntryRef.current = false;
+
+    return localMessages.map((msg, i) => {
+      const skipEntryAnimation =
+        skipLast && i === localMessages.length - 1 && msg.role === "assistant";
+      return (
+        <MessageBubble
+          key={msg.id || i}
+          message={msg}
+          user={user}
+          skipEntryAnimation={skipEntryAnimation}
+        />
+      );
+    });
+  }, [localMessages, user]);
 
   return (
     <main className="flex-1 flex flex-col h-[100dvh] relative bg-black/40 backdrop-blur-[2px] overflow-hidden">
@@ -571,6 +591,7 @@ const MessageBubble = memo(function MessageBubble({
   isStreaming = false,
   isGeneratingImage = false,
   isSearching = false,
+  skipEntryAnimation = false,
 }: {
   message: any;
   user: any;
@@ -578,6 +599,7 @@ const MessageBubble = memo(function MessageBubble({
   isStreaming?: boolean;
   isGeneratingImage?: boolean;
   isSearching?: boolean;
+  skipEntryAnimation?: boolean;
 }) {
   const isAI = message.role === "assistant";
   const [copied, setCopied] = useState(false);
@@ -591,7 +613,7 @@ const MessageBubble = memo(function MessageBubble({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={skipEntryAnimation ? false : { opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn("flex gap-4 group", !isAI && "flex-row-reverse")}
     >
