@@ -1,14 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   X, Save, ShieldAlert, User, Cpu, Wifi, Lock, BarChart3,
   Eye, EyeOff, CheckCircle2, AlertCircle, MessageSquare, Zap, Shield,
-  Info, Globe, Volume2, Palette, Key, Mic
+  Info, Globe, Volume2, Palette, Key, Mic, Play, Square, Loader2
 } from "lucide-react";
 import { useGetProfile, useUpdateProfile, getGetProfileQueryKey, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useAppState } from "@/hooks/use-app-state";
 import { useQueryClient } from "@tanstack/react-query";
 import { UserAvatar, CortexAvatar } from "./AvatarUtils";
-import { VOICE_OPTIONS, type VoiceId } from "@/hooks/use-voice";
+import { VOICE_OPTIONS, VOICE_SETTINGS_EVENT, type VoiceId } from "@/hooks/use-voice";
 
 interface ModalProps {
   open: boolean;
@@ -416,18 +416,62 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
   const [autoRead, setAutoRead] = useState<boolean>(() => {
     try { return localStorage.getItem(AUTO_READ_STORAGE_KEY) === "true"; } catch { return false; }
   });
+  const [previewingVoice,  setPreviewingVoice]  = useState<VoiceId | null>(null);
+  const [loadingPreview,   setLoadingPreview]   = useState<VoiceId | null>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const stopPreview = () => {
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause();
+      previewAudioRef.current.src = "";
+      previewAudioRef.current = null;
+    }
+    setPreviewingVoice(null);
+    setLoadingPreview(null);
+  };
+
+  const handleVoicePreview = async (id: VoiceId) => {
+    if (previewingVoice === id) { stopPreview(); return; }
+    stopPreview();
+
+    setLoadingPreview(id);
+    try {
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ text: "Hello, I am Cortex AI. How can I help you?", voiceId: id }),
+      });
+      if (!res.ok) throw new Error("Preview failed");
+      const buf  = await res.arrayBuffer();
+      const blob = new Blob([buf], { type: "audio/mpeg" });
+      const url  = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      previewAudioRef.current = audio;
+      setLoadingPreview(null);
+      setPreviewingVoice(id);
+      audio.onended = () => { URL.revokeObjectURL(url); setPreviewingVoice(null); previewAudioRef.current = null; };
+      audio.onerror = () => { URL.revokeObjectURL(url); setPreviewingVoice(null); setLoadingPreview(null); previewAudioRef.current = null; };
+      await audio.play();
+    } catch {
+      setLoadingPreview(null);
+      setPreviewingVoice(null);
+    }
+  };
 
   const handleVoiceSelect = (id: VoiceId) => {
     setSelectedVoice(id);
     try { localStorage.setItem(VOICE_STORAGE_KEY, id); } catch {}
+    window.dispatchEvent(new CustomEvent(VOICE_SETTINGS_EVENT, { detail: { voiceId: id } }));
   };
 
   const handleAutoRead = (v: boolean) => {
     setAutoRead(v);
     try { localStorage.setItem(AUTO_READ_STORAGE_KEY, String(v)); } catch {}
+    window.dispatchEvent(new CustomEvent(VOICE_SETTINGS_EVENT, { detail: { autoRead: v } }));
   };
 
-  useEffect(() => { if (!open) setSettingsTab("ai"); }, [open]);
+  useEffect(() => { if (!open) { setSettingsTab("ai"); stopPreview(); } }, [open]);
 
   if (!open) return null;
 
@@ -495,15 +539,15 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
                   <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-3">Voice character</div>
                   <div className="grid grid-cols-2 gap-3">
                     {VOICE_OPTIONS.map(v => (
-                      <button
+                      <div
                         key={v.id}
-                        onClick={() => handleVoiceSelect(v.id)}
-                        className="flex flex-col items-start gap-2 p-4 rounded-xl transition-all text-left"
+                        className="flex flex-col items-start gap-2 p-4 rounded-xl transition-all cursor-pointer"
                         style={{
                           background: selectedVoice === v.id ? `${v.color}12` : "#10101f",
                           border: selectedVoice === v.id ? `1.5px solid ${v.color}60` : "1px solid rgba(255,255,255,0.05)",
                           boxShadow: selectedVoice === v.id ? `0 0 16px ${v.color}20` : "none",
                         }}
+                        onClick={() => handleVoiceSelect(v.id)}
                       >
                         <div className="flex items-center gap-2 w-full">
                           <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: `${v.color}20`, border: `1px solid ${v.color}40` }}>
@@ -515,14 +559,34 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
                           )}
                         </div>
                         <span className="text-[10px] text-muted/50 font-mono">{v.desc}</span>
-                      </button>
+                        {/* Preview button */}
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); void handleVoicePreview(v.id); }}
+                          className="flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded-lg transition-all mt-0.5"
+                          style={{
+                            background: previewingVoice === v.id ? `${v.color}25` : "rgba(255,255,255,0.04)",
+                            border: `1px solid ${previewingVoice === v.id ? v.color + "60" : "rgba(255,255,255,0.08)"}`,
+                            color: previewingVoice === v.id ? v.color : "rgba(255,255,255,0.4)",
+                          }}
+                        >
+                          {loadingPreview === v.id ? (
+                            <Loader2 size={9} className="animate-spin" />
+                          ) : previewingVoice === v.id ? (
+                            <Square size={9} />
+                          ) : (
+                            <Play size={9} />
+                          )}
+                          {loadingPreview === v.id ? "Loading…" : previewingVoice === v.id ? "Stop" : "Preview"}
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>
 
                 <div className="p-4 rounded-xl text-xs text-muted/50" style={{ background: "rgba(0,208,255,0.03)", border: "1px solid rgba(0,208,255,0.08)" }}>
                   <Mic size={13} className="text-[#00d0ff]/40 mb-2" />
-                  Click the speaker icon on any AI message to hear it read aloud. Use the mic button in the chat input for voice input. Powered by ElevenLabs.
+                  Click the speaker icon on any AI message to hear it read aloud. Use the mic button in the chat input for voice input. Powered by OpenAI.
                 </div>
               </div>
             )}

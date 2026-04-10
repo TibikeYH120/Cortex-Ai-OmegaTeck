@@ -533,20 +533,31 @@ export function ChatArea() {
               </button>
             </div>
 
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={handleInput}
-              onKeyDown={handleKeyDown}
-              placeholder={voice.isRecording ? "Listening…" : "Message Cortex AI..."}
-              disabled={isStreaming}
-              className="w-full bg-transparent border-none outline-none text-foreground text-sm resize-none py-4 px-2 max-h-[180px] min-h-[56px] disabled:opacity-50"
-              rows={1}
-            />
+            {voice.isRecording ? (
+              <div className="flex-1 flex items-center gap-2 py-4 px-2">
+                <span className="flex gap-1 items-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#ff2e7e] animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#ff2e7e] animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#ff2e7e] animate-bounce" style={{ animationDelay: "300ms" }} />
+                </span>
+                <span className="text-sm font-mono text-[#ff2e7e]/80 tracking-wide">Listening…</span>
+              </div>
+            ) : (
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={handleInput}
+                onKeyDown={handleKeyDown}
+                placeholder="Message Cortex AI..."
+                disabled={isStreaming}
+                className="w-full bg-transparent border-none outline-none text-foreground text-sm resize-none py-4 px-2 max-h-[180px] min-h-[56px] disabled:opacity-50"
+                rows={1}
+              />
+            )}
             <div className="p-2 shrink-0">
               <button
                 onClick={() => handleSend()}
-                disabled={(!input.trim() && !imageAttachment) || isStreaming || isGeneratingImage}
+                disabled={(!input.trim() && !imageAttachment) || isStreaming || isGeneratingImage || voice.isRecording}
                 className="w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary text-black shadow-[0_0_14px_rgba(0,208,255,0.3)] hover:shadow-[0_0_22px_rgba(0,208,255,0.5)] hover:-translate-y-px transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
               >
                 <Send size={18} className="mr-0.5 mt-0.5" />

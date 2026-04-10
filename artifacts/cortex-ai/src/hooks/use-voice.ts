@@ -1,16 +1,18 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
 export const VOICE_OPTIONS = [
-  { id: "nova", label: "Nova", desc: "Warm & clear", color: "#00d0ff" },
-  { id: "aria", label: "Aria", desc: "Bright & expressive", color: "#6c3bff" },
-  { id: "echo", label: "Echo", desc: "Calm & measured", color: "#ff2e7e" },
-  { id: "orion", label: "Orion", desc: "Deep & confident", color: "#00ff88" },
+  { id: "nova",  label: "Nova",  desc: "Warm & clear",        color: "#00d0ff" },
+  { id: "aria",  label: "Aria",  desc: "Bright & expressive", color: "#6c3bff" },
+  { id: "echo",  label: "Echo",  desc: "Calm & measured",     color: "#ff2e7e" },
+  { id: "orion", label: "Orion", desc: "Deep & confident",    color: "#00ff88" },
 ] as const;
 
 export type VoiceId = (typeof VOICE_OPTIONS)[number]["id"];
 
-const VOICE_STORAGE_KEY = "cortex_voice_id";
-const AUTO_READ_STORAGE_KEY = "cortex_voice_auto_read";
+export const VOICE_STORAGE_KEY    = "cortex_voice_id";
+export const AUTO_READ_STORAGE_KEY = "cortex_voice_auto_read";
+
+export const VOICE_SETTINGS_EVENT = "cortex-voice-settings-change";
 
 function getStoredVoiceId(): VoiceId {
   try {
@@ -28,34 +30,47 @@ function getStoredAutoRead(): boolean {
 }
 
 export interface UseVoiceReturn {
-  speak: (text: string, messageId: string | number) => void;
-  stopSpeaking: () => void;
-  isPlaying: boolean;
-  isLoadingAudio: boolean;
-  activeMessageId: string | number | null;
+  speak:            (text: string, messageId: string | number) => void;
+  stopSpeaking:     () => void;
+  isPlaying:        boolean;
+  isLoadingAudio:   boolean;
+  activeMessageId:  string | number | null;
   preferredVoiceId: VoiceId;
   setPreferredVoiceId: (id: VoiceId) => void;
-  autoRead: boolean;
-  setAutoRead: (v: boolean) => void;
-  isRecording: boolean;
-  startRecording: () => Promise<void>;
-  stopRecording: () => Promise<string>;
-  recordingError: string | null;
+  autoRead:         boolean;
+  setAutoRead:      (v: boolean) => void;
+  isRecording:      boolean;
+  startRecording:   () => Promise<void>;
+  stopRecording:    () => Promise<string>;
+  cancelRecording:  () => void;
+  recordingError:   string | null;
 }
 
 export function useVoice(): UseVoiceReturn {
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying,      setIsPlaying]      = useState(false);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [activeMessageId, setActiveMessageId] = useState<string | number | null>(null);
   const [preferredVoiceId, setPreferredVoiceIdState] = useState<VoiceId>(getStoredVoiceId);
-  const [autoRead, setAutoReadState] = useState<boolean>(getStoredAutoRead);
-  const [isRecording, setIsRecording] = useState(false);
+  const [autoRead,    setAutoReadState]  = useState<boolean>(getStoredAutoRead);
+  const [isRecording,    setIsRecording]    = useState(false);
   const [recordingError, setRecordingError] = useState<string | null>(null);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef         = useRef<HTMLAudioElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const abortRef = useRef<AbortController | null>(null);
+  const chunksRef        = useRef<Blob[]>([]);
+  const abortRef         = useRef<AbortController | null>(null);
+
+  // Cancel recording without transcribing (used by mutual-exclusion logic)
+  const cancelRecording = useCallback(() => {
+    const mr = mediaRecorderRef.current;
+    if (mr) {
+      try { mr.stream.getTracks().forEach(t => t.stop()); } catch {}
+      try { mr.stop(); } catch {}
+      mediaRecorderRef.current = null;
+    }
+    chunksRef.current = [];
+    setIsRecording(false);
+  }, []);
 
   const stopSpeaking = useCallback(() => {
     if (abortRef.current) {
@@ -73,6 +88,9 @@ export function useVoice(): UseVoiceReturn {
   }, []);
 
   const speak = useCallback((text: string, messageId: string | number) => {
+    // Mutual exclusion: stop any active recording before starting TTS
+    cancelRecording();
+
     if (activeMessageId === messageId && (isPlaying || isLoadingAudio)) {
       stopSpeaking();
       return;
@@ -117,7 +135,7 @@ export function useVoice(): UseVoiceReturn {
 
         const arrayBuffer = await res.arrayBuffer();
         const blob = new Blob([arrayBuffer], { type: "audio/mpeg" });
-        const url = URL.createObjectURL(blob);
+        const url  = URL.createObjectURL(blob);
 
         if (controller.signal.aborted) {
           URL.revokeObjectURL(url);
@@ -151,7 +169,7 @@ export function useVoice(): UseVoiceReturn {
         setActiveMessageId(null);
       }
     })();
-  }, [activeMessageId, isPlaying, isLoadingAudio, preferredVoiceId, stopSpeaking]);
+  }, [activeMessageId, isPlaying, isLoadingAudio, preferredVoiceId, stopSpeaking, cancelRecording]);
 
   const setPreferredVoiceId = useCallback((id: VoiceId) => {
     setPreferredVoiceIdState(id);
@@ -163,7 +181,21 @@ export function useVoice(): UseVoiceReturn {
     try { localStorage.setItem(AUTO_READ_STORAGE_KEY, String(v)); } catch {}
   }, []);
 
+  // Listen for settings changes dispatched by the Settings modal in the same tab
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ voiceId?: VoiceId; autoRead?: boolean }>).detail;
+      if (detail.voiceId !== undefined) setPreferredVoiceIdState(detail.voiceId);
+      if (detail.autoRead !== undefined) setAutoReadState(detail.autoRead);
+    };
+    window.addEventListener(VOICE_SETTINGS_EVENT, handler);
+    return () => window.removeEventListener(VOICE_SETTINGS_EVENT, handler);
+  }, []);
+
   const startRecording = useCallback(async () => {
+    // Mutual exclusion: stop any active TTS playback before recording
+    stopSpeaking();
+
     setRecordingError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -178,8 +210,8 @@ export function useVoice(): UseVoiceReturn {
       const mr = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mr;
 
-      mr.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
+      mr.ondataavailable = (ev) => {
+        if (ev.data.size > 0) chunksRef.current.push(ev.data);
       };
 
       mr.start(250);
@@ -189,7 +221,7 @@ export function useVoice(): UseVoiceReturn {
       setRecordingError(msg);
       setIsRecording(false);
     }
-  }, []);
+  }, [stopSpeaking]);
 
   const stopRecording = useCallback((): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -236,12 +268,9 @@ export function useVoice(): UseVoiceReturn {
   useEffect(() => {
     return () => {
       stopSpeaking();
-      if (mediaRecorderRef.current) {
-        try { mediaRecorderRef.current.stop(); } catch {}
-        mediaRecorderRef.current = null;
-      }
+      cancelRecording();
     };
-  }, [stopSpeaking]);
+  }, [stopSpeaking, cancelRecording]);
 
   return {
     speak,
@@ -256,6 +285,7 @@ export function useVoice(): UseVoiceReturn {
     isRecording,
     startRecording,
     stopRecording,
+    cancelRecording,
     recordingError,
   };
 }
