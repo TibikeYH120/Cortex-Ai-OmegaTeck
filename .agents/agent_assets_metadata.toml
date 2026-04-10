@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "ZHALcEMHN-dsdg0ktr6KX"
+uri = "file://artifacts/cortex-ai/public/icon-512.png"
+type = "image"
+title = "cortex-ai-app-icon"
