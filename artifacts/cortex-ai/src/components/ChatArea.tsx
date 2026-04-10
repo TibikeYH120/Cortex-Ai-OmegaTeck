@@ -39,17 +39,19 @@ export function ChatArea() {
 
   const createMutation = useCreateAnthropicConversation();
 
-  // Set to true just before the newly streamed AI message is committed to localMessages.
-  // Consumed (and reset) inside renderedMessages useMemo to skip the entry animation once.
-  const skipNextEntryRef = useRef(false);
+  // Stores the id of the most recently streamed AI message so its entry animation can be skipped.
+  // Set before setLocalMessages (so React batches them), read (without mutation) in useMemo,
+  // and cleared in a useEffect after the render — avoiding render-phase side effects.
+  const lastStreamedIdRef = useRef<number | null>(null);
 
   const { sendMessage, isStreaming, isGenerating, streamingContent, stopStream, isGeneratingImage, isSearching } = useChatStream({
     conversationId: activeConversationId,
     onFinished: (fullContent, usedSearch, sources) => {
       if (fullContent) {
-        skipNextEntryRef.current = true;
+        const newId = Date.now();
+        lastStreamedIdRef.current = newId;
         setLocalMessages(prev => [...prev, {
-          id: Date.now(),
+          id: newId,
           role: "assistant",
           content: fullContent,
           usedSearch,
@@ -277,15 +279,11 @@ export function ChatArea() {
   const showWelcome = !activeConversationId && localMessages.length === 0;
 
   const renderedMessages = useMemo(() => {
-    // Consume the skip-animation flag on the first render after streaming finishes.
-    // Reading and resetting a ref inside useMemo is safe here: refs don't trigger
-    // re-renders, and the flag is only ever set synchronously before setLocalMessages.
-    const skipLast = skipNextEntryRef.current;
-    skipNextEntryRef.current = false;
-
+    // Read-only ref access inside useMemo — no mutation, safe under concurrent rendering.
+    const streamedId = lastStreamedIdRef.current;
     return localMessages.map((msg, i) => {
       const skipEntryAnimation =
-        skipLast && i === localMessages.length - 1 && msg.role === "assistant";
+        streamedId !== null && msg.id === streamedId && msg.role === "assistant";
       return (
         <MessageBubble
           key={msg.id || i}
@@ -296,6 +294,13 @@ export function ChatArea() {
       );
     });
   }, [localMessages, user]);
+
+  // Clear the streamed-id ref after the render so future re-renders animate normally.
+  // useEffect runs after paint — by then Framer Motion has already committed the
+  // mount animation (or lack thereof), so clearing the ref is safe.
+  useEffect(() => {
+    lastStreamedIdRef.current = null;
+  }, [localMessages]);
 
   return (
     <main className="flex-1 flex flex-col h-[100dvh] relative bg-black/40 backdrop-blur-[2px] overflow-hidden">
