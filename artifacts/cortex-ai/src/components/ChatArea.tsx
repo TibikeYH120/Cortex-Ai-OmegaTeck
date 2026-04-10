@@ -10,6 +10,40 @@ import { cn, formatDate } from "@/lib/utils";
 import { UserAvatar, CortexAvatar } from "./AvatarUtils";
 import { VoiceMode } from "./VoiceMode";
 
+// ── Active model badge ─────────────────────────────────────────────────────────
+
+function ActiveModelBadge() {
+  const [model, setModel] = useState<string>(() => {
+    try { return localStorage.getItem("cortex_model") || "cortex"; } catch { return "cortex"; }
+  });
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "cortex_model") setModel(e.newValue || "cortex");
+    };
+    const onCustom = (e: Event) => {
+      setModel((e as CustomEvent).detail || "cortex");
+    };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("cortex-model-change", onCustom);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("cortex-model-change", onCustom);
+    };
+  }, []);
+
+  const isLite = model === "cortex-lite";
+  return (
+    <span
+      className="font-mono text-[10px] flex items-center gap-1"
+      style={{ color: isLite ? "rgba(108,59,255,0.6)" : "rgba(0,208,255,0.5)" }}
+    >
+      {isLite ? "CORTEX LITE" : "CORTEX"}
+      <span className="w-1 h-1 rounded-full inline-block" style={{ background: isLite ? "#6c3bff" : "#00d0ff", boxShadow: `0 0 4px ${isLite ? "#6c3bff" : "#00d0ff"}` }} />
+    </span>
+  );
+}
+
 // Matches the full-string form Claude outputs when generating images.
 // Anchored on trimmed content so normal assistant messages that happen to mention
 // the pattern in code/prose are not accidentally filtered.
@@ -578,7 +612,7 @@ export function ChatArea() {
           </div>
           <div className="mt-2 hidden sm:flex justify-between items-center px-2">
             <span className="font-mono text-[10px] text-muted/60 tracking-wide">ENTER = send &nbsp;·&nbsp; SHIFT+ENTER = new line</span>
-            <span className="font-mono text-[10px] text-muted/40">CORTEX AI v9 Beta</span>
+            <ActiveModelBadge />
           </div>
         </div>
       </div>

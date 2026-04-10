@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { conversations, messages, usersTable } from "@workspace/db";
 import { eq, asc, desc } from "drizzle-orm";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
+import OpenAI from "openai";
 import type {
   MessageParam,
   Tool,
@@ -184,6 +185,87 @@ type FlushableResponse = Response & { flush?: () => void };
 function sseWrite(res: Response, payload: Record<string, unknown>): void {
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
   (res as FlushableResponse).flush?.();
+}
+
+// ── OpenAI client helper ──────────────────────────────────────────────────────
+
+function getOpenAIClient(): OpenAI {
+  const integrationKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  const integrationBase = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+  if (integrationKey && integrationBase) {
+    return new OpenAI({ apiKey: integrationKey, baseURL: integrationBase });
+  }
+  const directKey = process.env.OPENAI_API_KEY;
+  if (directKey) {
+    return new OpenAI({ apiKey: directKey });
+  }
+  throw new Error("No OpenAI API key found. Set OPENAI_API_KEY or the Replit AI_INTEGRATIONS_OPENAI_* vars.");
+}
+
+// ── OpenAI Streaming helper (CORTEX LITE) ─────────────────────────────────────
+
+const BASE_SYSTEM_PROMPT_LITE = `You are CORTEX AI (Lite Mode), the fast AI assistant of OmegaTeck Technology.
+
+OmegaTeck Technology is an innovative tech company. Founder and creative director: Tibor. Projects: OmegaHumanity, VoidExio. Focus: game development, web development, creative technology, AI integration.
+
+Personality:
+- Technology expert, friendly, direct communication style
+- Respond in the language the user writes in (English by default)
+- Always wrap code in \`\`\` code blocks with the appropriate language tag
+- Keep responses concise and impactful when possible
+- Expert in: React, Next.js, Three.js, Tailwind CSS, game design, Roblox, Unreal Engine 5
+
+When generating HTML, React, or Next.js code, produce complete, runnable examples that can be previewed directly.
+
+IMAGE GENERATION:
+When the user requests an image (e.g. "generate an image of...", "create a picture of...", "draw me...", "make an image of..."), respond with ONLY this format and nothing else:
+[GENERATE_IMAGE: <detailed image prompt in English>]
+
+The prompt inside the brackets should be detailed and descriptive for best results. Do not add any other text before or after the bracket tag when generating an image.`;
+
+function buildSystemPromptLite(systemAbout?: string | null, systemRespond?: string | null): string {
+  let prompt = BASE_SYSTEM_PROMPT_LITE;
+  if (systemAbout?.trim()) {
+    prompt += `\n\n--- USER CONTEXT (always keep in mind) ---\n${systemAbout.trim()}`;
+  }
+  if (systemRespond?.trim()) {
+    prompt += `\n\n--- RESPONSE STYLE PREFERENCES ---\n${systemRespond.trim()}`;
+  }
+  return prompt;
+}
+
+interface OpenAIChatMsg {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+async function runOpenAIStreaming(
+  chatMessages: OpenAIChatMsg[],
+  systemPrompt: string,
+  res: Response,
+): Promise<string> {
+  const openai = getOpenAIClient();
+  const allMessages: OpenAIChatMsg[] = [
+    { role: "system", content: systemPrompt },
+    ...chatMessages,
+  ];
+
+  const stream = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: allMessages,
+    stream: true,
+    max_tokens: 8192,
+  });
+
+  let fullText = "";
+  for await (const chunk of stream) {
+    const delta = chunk.choices[0]?.delta?.content;
+    if (delta) {
+      fullText += delta;
+      sseWrite(res, { content: delta });
+    }
+  }
+  return fullText;
 }
 
 // ── Streaming conversation helper ─────────────────────────────────────────────
@@ -474,12 +556,14 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
-  const { content, imageAttachment, systemAbout: guestAbout, systemRespond: guestRespond } = req.body as {
+  const { content, imageAttachment, systemAbout: guestAbout, systemRespond: guestRespond, cortexModel } = req.body as {
     content?: string;
     imageAttachment?: string;
     systemAbout?: string;
     systemRespond?: string;
+    cortexModel?: string;
   };
+  const useLite = cortexModel === "cortex-lite";
   if (!content && !imageAttachment) {
     res.status(400).json({ error: "Message content is required" });
     return;
@@ -582,8 +666,19 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
     let usedSearch: boolean;
     let sources: WebSearchSource[];
 
-    if (parsedAttachment) {
-      // Image messages skip the tool-use path — stream directly without tools.
+    if (useLite) {
+      // ── CORTEX LITE: OpenAI gpt-4o streaming ──────────────────────────────
+      const liteSystemPrompt = buildSystemPromptLite(systemAbout, systemRespond);
+      const openAIMsgs: OpenAIChatMsg[] = existingMessages.slice(0, -1).map(m => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }));
+      openAIMsgs.push({ role: "user", content: textContent });
+      fullResponse = await runOpenAIStreaming(openAIMsgs, liteSystemPrompt, res);
+      usedSearch = false;
+      sources = [];
+    } else if (parsedAttachment) {
+      // ── CORTEX standard: Claude with image — skip tool-use path ───────────
       const stream = anthropic.messages.stream({
         model: "claude-sonnet-4-6",
         max_tokens: 8192,
@@ -604,6 +699,7 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
       usedSearch = false;
       sources = [];
     } else {
+      // ── CORTEX standard: Claude with web search tools ─────────────────────
       ({ fullText: fullResponse, usedSearch, sources } =
         await runStreamingConversation(chatMessages, effectiveSystemPrompt, res, req.log));
     }

@@ -410,6 +410,18 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
   const updateMutation = useUpdateProfile();
   const queryClient = useQueryClient();
 
+  const [cortexModel, setCortexModelState] = useState<"cortex" | "cortex-lite">(() => {
+    try { return (localStorage.getItem("cortex_model") as "cortex" | "cortex-lite") || "cortex"; } catch { return "cortex"; }
+  });
+
+  const handleModelSelect = (m: "cortex" | "cortex-lite") => {
+    setCortexModelState(m);
+    try {
+      localStorage.setItem("cortex_model", m);
+      window.dispatchEvent(new CustomEvent("cortex-model-change", { detail: m }));
+    } catch {}
+  };
+
   const [sysAbout, setSysAbout] = useState<string>(() => {
     try { return localStorage.getItem("cortex_sys_about") ?? ""; } catch { return ""; }
   });
@@ -723,16 +735,61 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
 
             {settingsTab === "ai" && (
               <div className="space-y-5">
-                {/* Model Card */}
-                <div className="p-4 rounded-xl flex items-center gap-4" style={{ background: "#10101f", border: "1px solid rgba(255,255,255,0.06)" }}>
-                  <CortexAvatar size={52} />
-                  <div className="flex-1">
-                    <div className="text-sm font-bold text-white">Cortex AI</div>
-                    <div className="text-[11px] font-mono text-muted/60 mt-0.5">CORTEX AI Engine · OmegaTeck</div>
-                    <div className="text-[10px] text-muted/40 mt-1">Proprietary AI Engine v9 Beta</div>
-                  </div>
-                  <div className="px-2 py-1 rounded-md text-[10px] font-mono uppercase" style={{ background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.2)", color: "#00ff88" }}>
-                    Active
+                {/* Model Selector */}
+                <div>
+                  <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-3">Select Engine</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* CORTEX */}
+                    <button
+                      type="button"
+                      onClick={() => handleModelSelect("cortex")}
+                      className="flex flex-col items-start gap-2 p-4 rounded-xl text-left transition-all"
+                      style={{
+                        background: cortexModel === "cortex" ? "rgba(0,208,255,0.07)" : "#10101f",
+                        border: cortexModel === "cortex" ? "1.5px solid rgba(0,208,255,0.45)" : "1px solid rgba(255,255,255,0.06)",
+                        boxShadow: cortexModel === "cortex" ? "0 0 20px rgba(0,208,255,0.12)" : "none",
+                      }}
+                    >
+                      <div className="flex items-center gap-2 w-full">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(0,208,255,0.12)", border: "1px solid rgba(0,208,255,0.25)" }}>
+                          <Cpu size={14} style={{ color: "#00d0ff" }} />
+                        </div>
+                        <span className="font-display font-bold text-sm" style={{ color: cortexModel === "cortex" ? "#00d0ff" : "rgba(255,255,255,0.85)" }}>CORTEX</span>
+                        {cortexModel === "cortex" && (
+                          <div className="ml-auto w-1.5 h-1.5 rounded-full" style={{ background: "#00d0ff", boxShadow: "0 0 6px #00d0ff" }} />
+                        )}
+                      </div>
+                      <span className="text-[10px] font-mono text-muted/50">Advanced AI Engine</span>
+                      <div className="px-2 py-0.5 rounded text-[9px] font-mono uppercase" style={{ background: "rgba(0,208,255,0.08)", color: "#00d0ff", border: "1px solid rgba(0,208,255,0.2)" }}>
+                        Most Capable
+                      </div>
+                    </button>
+
+                    {/* CORTEX LITE */}
+                    <button
+                      type="button"
+                      onClick={() => handleModelSelect("cortex-lite")}
+                      className="flex flex-col items-start gap-2 p-4 rounded-xl text-left transition-all"
+                      style={{
+                        background: cortexModel === "cortex-lite" ? "rgba(108,59,255,0.07)" : "#10101f",
+                        border: cortexModel === "cortex-lite" ? "1.5px solid rgba(108,59,255,0.5)" : "1px solid rgba(255,255,255,0.06)",
+                        boxShadow: cortexModel === "cortex-lite" ? "0 0 20px rgba(108,59,255,0.12)" : "none",
+                      }}
+                    >
+                      <div className="flex items-center gap-2 w-full">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(108,59,255,0.12)", border: "1px solid rgba(108,59,255,0.25)" }}>
+                          <Zap size={14} style={{ color: "#6c3bff" }} />
+                        </div>
+                        <span className="font-display font-bold text-sm" style={{ color: cortexModel === "cortex-lite" ? "#6c3bff" : "rgba(255,255,255,0.85)" }}>CORTEX LITE</span>
+                        {cortexModel === "cortex-lite" && (
+                          <div className="ml-auto w-1.5 h-1.5 rounded-full" style={{ background: "#6c3bff", boxShadow: "0 0 6px #6c3bff" }} />
+                        )}
+                      </div>
+                      <span className="text-[10px] font-mono text-muted/50">Lite AI Engine</span>
+                      <div className="px-2 py-0.5 rounded text-[9px] font-mono uppercase" style={{ background: "rgba(108,59,255,0.08)", color: "#6c3bff", border: "1px solid rgba(108,59,255,0.2)" }}>
+                        Fast &amp; Light
+                      </div>
+                    </button>
                   </div>
                 </div>
 

@@ -95,9 +95,11 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
 
     let systemAbout: string | null = null;
     let systemRespond: string | null = null;
+    let cortexModel: string | null = null;
     try {
       systemAbout = localStorage.getItem("cortex_sys_about");
       systemRespond = localStorage.getItem("cortex_sys_respond");
+      cortexModel = localStorage.getItem("cortex_model");
     } catch {}
 
     try {
@@ -105,7 +107,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ content, imageAttachment, systemAbout, systemRespond }),
+        body: JSON.stringify({ content, imageAttachment, systemAbout, systemRespond, cortexModel }),
         signal: abortControllerRef.current.signal,
       });
 
