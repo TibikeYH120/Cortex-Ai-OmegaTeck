@@ -19,10 +19,10 @@ if (Number.isNaN(port) || port <= 0) {
 await runStartupMigrations();
 logger.info("Database schema ready");
 
-if (!process.env["BRAVE_SEARCH_API_KEY"]) {
+if (!process.env["TAVILY_API_KEY"]) {
   logger.warn(
-    "BRAVE_SEARCH_API_KEY is not set — web search will fall back to Wikipedia only. " +
-    "Get a free key at https://api.search.brave.com/app/dashboard"
+    "TAVILY_API_KEY is not set — web search will fall back to Wikipedia only. " +
+    "Get a free key (1,000 searches/month) at https://app.tavily.com"
   );
 }
 

@@ -82,77 +82,72 @@ async function wikipediaSearch(query: string): Promise<SearchResult[]> {
 }
 
 /**
- * Brave Web Search API — real web results with titles, URLs, and descriptions.
- * Requires BRAVE_SEARCH_API_KEY env var (free tier: 2,000 queries/month).
+ * Tavily Search API — real web results specifically designed for AI agents.
+ * Requires TAVILY_API_KEY env var (free tier: 1,000 queries/month).
+ * Get a free key at https://app.tavily.com
  * Returns empty array if the key is not set, so callers fall back gracefully.
  */
-async function braveSearch(query: string): Promise<SearchResult[]> {
-  const apiKey = process.env["BRAVE_SEARCH_API_KEY"];
+async function tavilySearch(query: string): Promise<SearchResult[]> {
+  const apiKey = process.env["TAVILY_API_KEY"];
   if (!apiKey) return [];
 
-  const params = new URLSearchParams({
-    q: query,
-    count: "8",
-    search_lang: "en",
-    result_filter: "web",
+  const resp = await fetch("https://api.tavily.com/search", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      query,
+      max_results: 8,
+      search_depth: "basic",
+      include_answer: false,
+    }),
+    signal: AbortSignal.timeout(10000),
   });
-
-  const resp = await fetch(
-    `https://api.search.brave.com/res/v1/web/search?${params.toString()}`,
-    {
-      headers: {
-        "Accept": "application/json",
-        "Accept-Encoding": "gzip",
-        "X-Subscription-Token": apiKey,
-      },
-      signal: AbortSignal.timeout(8000),
-    }
-  );
 
   if (!resp.ok) return [];
 
   const data = (await resp.json()) as {
-    web?: {
-      results?: Array<{
-        title?: string;
-        url?: string;
-        description?: string;
-      }>;
-    };
+    results?: Array<{
+      title?: string;
+      url?: string;
+      content?: string;
+    }>;
   };
 
-  return (data.web?.results ?? [])
+  return (data.results ?? [])
     .filter(r => r.url && r.title)
     .map(r => ({
       url: r.url!,
       title: r.title!,
-      snippet: (r.description ?? "").slice(0, 400),
+      snippet: (r.content ?? "").slice(0, 400),
     }))
     .slice(0, 6);
 }
 
 /**
  * Combined search strategy:
- *  1. Brave Web Search (if BRAVE_SEARCH_API_KEY is set) — real web results
+ *  1. Tavily Search (if TAVILY_API_KEY is set) — real web results for AI
  *  2. Wikipedia — factual encyclopaedic coverage, run in parallel as supplement
- *  3. If Brave is unavailable, falls back to Wikipedia-only results
+ *  3. If Tavily is unavailable, falls back to Wikipedia-only results
  * Results are deduplicated by URL and capped at 8.
  */
 async function runWebSearch(query: string): Promise<SearchResult[]> {
-  const hasBrave = Boolean(process.env["BRAVE_SEARCH_API_KEY"]);
+  const hasTavily = Boolean(process.env["TAVILY_API_KEY"]);
 
-  const [braveResult, wikiResult] = await Promise.allSettled([
-    braveSearch(query),
+  const [tavilyResult, wikiResult] = await Promise.allSettled([
+    tavilySearch(query),
     wikipediaSearch(query),
   ]);
 
-  const braveItems = braveResult.status === "fulfilled" ? braveResult.value : [];
+  const tavilyItems = tavilyResult.status === "fulfilled" ? tavilyResult.value : [];
   const wikiItems = wikiResult.status === "fulfilled" ? wikiResult.value : [];
 
-  // If Brave returned results, use them as primary and supplement with Wikipedia.
-  // If Brave is not configured, fall back to Wikipedia alone.
-  const primary = hasBrave && braveItems.length > 0 ? braveItems : wikiItems;
-  const supplementary = hasBrave && braveItems.length > 0 ? wikiItems : [];
+  // If Tavily returned results, use them as primary and supplement with Wikipedia.
+  // If Tavily is not configured, fall back to Wikipedia alone.
+  const primary = hasTavily && tavilyItems.length > 0 ? tavilyItems : wikiItems;
+  const supplementary = hasTavily && tavilyItems.length > 0 ? wikiItems : [];
 
   const seen = new Set<string>();
   const combined = [...primary, ...supplementary].filter(r => {
