@@ -17,38 +17,52 @@ interface UseChatStreamProps {
 }
 
 export function useChatStream({ conversationId, onFinished, onImageGenerated, onError }: UseChatStreamProps) {
-  const [isStreaming, setIsStreaming] = useState(false);
+  // Phase 1: server is actively streaming (we buffer silently — no text visible)
+  const [isGenerating, setIsGenerating] = useState(false);
+  // Phase 2: typewriter animation is playing (streamingContent fills smoothly)
+  const [isTypewriting, setIsTypewriting] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const isSearchingRef = useRef(false);
-  const queryClient = useQueryClient();
-  const abortControllerRef = useRef<AbortController | null>(null);
-
-  // RAF-based throttle: accumulate text between frames so React only
-  // re-renders at most once per animation frame (~60fps) instead of
-  // once per SSE chunk (potentially hundreds per second).
-  const pendingTextRef = useRef<string>("");
   const rafIdRef = useRef<number | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const queryClient = useQueryClient();
 
-  const flushPending = useCallback(() => {
-    setStreamingContent(pendingTextRef.current);
-    rafIdRef.current = null;
-  }, []);
+  // isStreaming covers both phases for backward compat with ChatArea
+  const isStreaming = isGenerating || isTypewriting;
 
-  const scheduleStreamUpdate = useCallback((text: string) => {
-    pendingTextRef.current = text;
-    if (rafIdRef.current === null) {
-      rafIdRef.current = requestAnimationFrame(flushPending);
-    }
-  }, [flushPending]);
-
-  const cancelPendingFlush = useCallback(() => {
+  const cancelAnimation = useCallback(() => {
     if (rafIdRef.current !== null) {
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
     }
-    pendingTextRef.current = "";
+  }, []);
+
+  const startTypewriter = useCallback((text: string, onDone: () => void) => {
+    if (!text) {
+      onDone();
+      return;
+    }
+    setIsTypewriting(true);
+    let i = 0;
+    // Adaptive speed: max ~3 seconds (180 frames at 60 fps), minimum 3 chars/frame
+    const CHARS_PER_FRAME = Math.max(3, Math.ceil(text.length / 180));
+
+    const tick = () => {
+      i += CHARS_PER_FRAME;
+      if (i >= text.length) {
+        setStreamingContent(text);
+        setIsTypewriting(false);
+        rafIdRef.current = null;
+        onDone();
+        return;
+      }
+      setStreamingContent(text.slice(0, i));
+      rafIdRef.current = requestAnimationFrame(tick);
+    };
+
+    rafIdRef.current = requestAnimationFrame(tick);
   }, []);
 
   const sendMessage = async (content: string, overrideConvId?: number, imageAttachment?: string) => {
@@ -58,11 +72,12 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
       return;
     }
 
-    setIsStreaming(true);
+    cancelAnimation();
+    setIsGenerating(true);
+    setIsTypewriting(false);
     setStreamingContent("");
     setIsSearching(false);
     isSearchingRef.current = false;
-    pendingTextRef.current = "";
     let fullText = "";
     let usedSearch = false;
     let sources: WebSearchSource[] = [];
@@ -122,8 +137,8 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
                   isSearchingRef.current = false;
                   setIsSearching(false);
                 }
+                // Buffer silently — no state update during generation phase
                 fullText += data.content;
-                scheduleStreamUpdate(fullText);
               }
             } catch (err) {
               console.error("SSE parse error", err, line);
@@ -132,16 +147,15 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
         }
       }
 
-      cancelPendingFlush();
-      setIsStreaming(false);
+      // Phase 1 done — server finished generating
+      setIsGenerating(false);
+      isSearchingRef.current = false;
       setIsSearching(false);
-      setStreamingContent("");
 
       const imageMatch = fullText.match(IMAGE_PATTERN);
       if (imageMatch) {
         const imagePrompt = imageMatch[1].trim();
         setIsGeneratingImage(true);
-
         try {
           const imgRes = await fetch("/api/image/generate", {
             method: "POST",
@@ -149,7 +163,6 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
             credentials: "include",
             body: JSON.stringify({ prompt: imagePrompt }),
           });
-
           if (!imgRes.ok) throw new Error("Image generation failed");
           const { imageData } = await imgRes.json();
           onImageGenerated?.(imageData, imagePrompt);
@@ -158,39 +171,45 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
         } finally {
           setIsGeneratingImage(false);
         }
-
         queryClient.invalidateQueries({ queryKey: getListAnthropicConversationsQueryKey() });
         return;
       }
 
-      onFinished?.(fullText, usedSearch, sources);
-
-      queryClient.invalidateQueries({ queryKey: getGetAnthropicConversationQueryKey(targetId) });
-      queryClient.invalidateQueries({ queryKey: getListAnthropicConversationsQueryKey() });
+      // Phase 2: typewriter animation — fires onFinished when the animation completes
+      startTypewriter(fullText, () => {
+        setStreamingContent("");
+        onFinished?.(fullText, usedSearch, sources);
+        queryClient.invalidateQueries({ queryKey: getGetAnthropicConversationQueryKey(targetId) });
+        queryClient.invalidateQueries({ queryKey: getListAnthropicConversationsQueryKey() });
+      });
 
     } catch (err: any) {
       if (err.name !== "AbortError") {
         console.error("Stream error:", err);
         onError?.(err.message || "Error during generation.");
       }
+      cancelAnimation();
+      setIsTypewriting(false);
+      setStreamingContent("");
     } finally {
-      cancelPendingFlush();
-      setIsStreaming(false);
+      setIsGenerating(false);
       isSearchingRef.current = false;
       setIsSearching(false);
-      setStreamingContent("");
+      // NOTE: intentionally do NOT reset isTypewriting/streamingContent here —
+      // the typewriter animation runs after this finally block and manages its own state.
     }
   };
 
   const stopStream = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
-      cancelPendingFlush();
-      setIsStreaming(false);
-      isSearchingRef.current = false;
-      setIsSearching(false);
-      setStreamingContent("");
     }
+    cancelAnimation();
+    setIsGenerating(false);
+    setIsTypewriting(false);
+    isSearchingRef.current = false;
+    setIsSearching(false);
+    setStreamingContent("");
   };
 
   useEffect(() => {
@@ -198,9 +217,17 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      cancelPendingFlush();
+      cancelAnimation();
     };
-  }, [cancelPendingFlush]);
+  }, [cancelAnimation]);
 
-  return { sendMessage, isStreaming, streamingContent, stopStream, isGeneratingImage, isSearching };
+  return {
+    sendMessage,
+    isStreaming,
+    isGenerating,
+    streamingContent,
+    stopStream,
+    isGeneratingImage,
+    isSearching,
+  };
 }

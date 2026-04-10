@@ -39,7 +39,7 @@ export function ChatArea() {
 
   const createMutation = useCreateAnthropicConversation();
 
-  const { sendMessage, isStreaming, streamingContent, stopStream, isGeneratingImage, isSearching } = useChatStream({
+  const { sendMessage, isStreaming, isGenerating, streamingContent, stopStream, isGeneratingImage, isSearching } = useChatStream({
     conversationId: activeConversationId,
     onFinished: (fullContent, usedSearch, sources) => {
       if (fullContent) {
@@ -404,7 +404,7 @@ export function ChatArea() {
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-mono text-muted hover:text-white hover:bg-s2 border border-border hover:border-border2 transition-all"
               >
                 <StopCircle size={14} className="text-destructive" />
-                Stop
+                {isGenerating ? "Generating..." : "Stop"}
               </button>
             ) : (
               <button
