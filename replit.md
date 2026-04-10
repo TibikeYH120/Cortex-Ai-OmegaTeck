@@ -38,6 +38,20 @@ artifacts-monorepo/
 └── package.json            # Root package with hoisted devDeps
 ```
 
+## Environment Variables
+
+Required secrets (set in Replit Secrets or Railway environment variables):
+
+| Variable | Required | Description |
+|---|---|---|
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `SESSION_SECRET` | Yes | Express session secret (throws in production if missing) |
+| `AI_INTEGRATIONS_ANTHROPIC_BASE_URL` | Yes | Anthropic proxy base URL |
+| `AI_INTEGRATIONS_ANTHROPIC_API_KEY` | Yes | Anthropic proxy API key |
+| `AI_INTEGRATIONS_GEMINI_BASE_URL` | Yes | Gemini proxy base URL (image generation) |
+| `AI_INTEGRATIONS_GEMINI_API_KEY` | Yes | Gemini proxy API key |
+| `TAVILY_API_KEY` | No | Tavily Search API key for real web search results (free: 1,000/month at https://app.tavily.com). Falls back to Wikipedia-only if not set. |
+
 ## Applications
 
 ### CORTEX AI (`artifacts/cortex-ai`)
