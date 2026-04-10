@@ -4,10 +4,9 @@ import multer from "multer";
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-
 router.post("/", upload.single("audio"), async (req: Request, res: Response) => {
-  if (!ELEVENLABS_API_KEY) {
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+  if (!apiKey) {
     res.status(503).json({ error: "STT service not configured" });
     return;
   }
@@ -27,7 +26,7 @@ router.post("/", upload.single("audio"), async (req: Request, res: Response) => 
     const elRes = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
       method: "POST",
       headers: {
-        "xi-api-key": ELEVENLABS_API_KEY,
+        "xi-api-key": apiKey,
       },
       body: formData,
     });

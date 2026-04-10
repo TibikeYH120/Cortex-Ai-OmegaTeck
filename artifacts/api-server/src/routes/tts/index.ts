@@ -2,8 +2,6 @@ import { Router, type IRouter, type Request, type Response } from "express";
 
 const router: IRouter = Router();
 
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-
 const VOICE_IDS: Record<string, string> = {
   nova: "21m00Tcm4TlvDq8ikWAM",
   aria: "9BWtsMINqrJLrRacOk9x",
@@ -19,7 +17,8 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  if (!ELEVENLABS_API_KEY) {
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+  if (!apiKey) {
     res.status(503).json({ error: "TTS service not configured" });
     return;
   }
@@ -31,11 +30,11 @@ router.post("/", async (req: Request, res: Response) => {
 
   try {
     const elRes = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${resolvedVoiceId}/stream`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${resolvedVoiceId}`,
       {
         method: "POST",
         headers: {
-          "xi-api-key": ELEVENLABS_API_KEY,
+          "xi-api-key": apiKey,
           "Content-Type": "application/json",
           Accept: "audio/mpeg",
         },
@@ -59,28 +58,10 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
+    const audioBuffer = await elRes.arrayBuffer();
     res.setHeader("Content-Type", "audio/mpeg");
-    res.setHeader("Transfer-Encoding", "chunked");
     res.setHeader("Cache-Control", "no-store");
-
-    if (!elRes.body) {
-      res.status(502).json({ error: "Empty TTS response" });
-      return;
-    }
-
-    const reader = elRes.body.getReader();
-    const pump = async () => {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (!res.writableEnded) res.write(value);
-      }
-      if (!res.writableEnded) res.end();
-    };
-    pump().catch((err) => {
-      req.log.error({ err }, "TTS stream pump error");
-      if (!res.headersSent) res.status(502).json({ error: "TTS stream error" });
-    });
+    res.send(Buffer.from(audioBuffer));
   } catch (err) {
     req.log.error({ err }, "TTS route error");
     res.status(500).json({ error: "TTS failed" });
