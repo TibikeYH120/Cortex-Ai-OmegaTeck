@@ -207,6 +207,12 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
       setIsTypewriting(false);
       setStreamingContent("");
     } finally {
+      // Always clear the char-count interval on exit (success, abort, or error).
+      if (charCountIntervalRef.current !== null) {
+        clearInterval(charCountIntervalRef.current);
+        charCountIntervalRef.current = null;
+      }
+      setGeneratingCharCount(0);
       setIsGenerating(false);
       isSearchingRef.current = false;
       setIsSearching(false);
