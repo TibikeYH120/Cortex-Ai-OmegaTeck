@@ -712,12 +712,15 @@ const MessageBubble = memo(function MessageBubble({
                   onClick={onSpeak}
                   title={isThisPlaying ? "Stop" : isLoadingThisAudio ? "Loading audio…" : "Read aloud"}
                   className={cn(
-                    "flex items-center justify-center text-[10px] font-mono transition-all",
+                    "relative flex items-center justify-center text-[10px] font-mono transition-all rounded-full",
                     isThisPlaying ? "text-[#00d0ff]" :
                     isLoadingThisAudio ? "text-muted/60 cursor-wait" :
                     "text-muted hover:text-[#00d0ff]"
                   )}
                 >
+                  {isThisPlaying && (
+                    <span className="absolute inset-[-3px] rounded-full border border-[#00d0ff]/50 animate-ping" />
+                  )}
                   {isLoadingThisAudio ? (
                     <Loader2 size={10} className="animate-spin" />
                   ) : isThisPlaying ? (

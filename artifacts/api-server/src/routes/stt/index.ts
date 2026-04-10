@@ -14,10 +14,22 @@ function getOpenAIClient() {
   return new OpenAI({ apiKey, baseURL });
 }
 
+const ALLOWED_AUDIO_MIME = new Set([
+  "audio/webm", "audio/webm;codecs=opus",
+  "audio/ogg", "audio/ogg;codecs=opus",
+  "audio/mp4", "audio/mpeg", "audio/wav", "audio/flac",
+]);
+
 router.post("/", upload.single("audio"), async (req: Request, res: Response) => {
   const file = req.file;
   if (!file) {
     res.status(400).json({ error: "audio file is required" });
+    return;
+  }
+
+  const baseMime = (file.mimetype || "").split(";")[0].trim().toLowerCase();
+  if (!ALLOWED_AUDIO_MIME.has(file.mimetype) && !ALLOWED_AUDIO_MIME.has(baseMime)) {
+    res.status(415).json({ error: `Unsupported audio type: ${file.mimetype}` });
     return;
   }
 
