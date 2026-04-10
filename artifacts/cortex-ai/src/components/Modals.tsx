@@ -459,8 +459,8 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
                   <CortexAvatar size={52} />
                   <div className="flex-1">
                     <div className="text-sm font-bold text-white">Cortex AI</div>
-                    <div className="text-[11px] font-mono text-muted/60 mt-0.5">claude-sonnet-4-6 · Anthropic</div>
-                    <div className="text-[10px] text-muted/40 mt-1">Latest Claude Sonnet model</div>
+                    <div className="text-[11px] font-mono text-muted/60 mt-0.5">CORTEX AI Engine · OmegaTeck</div>
+                    <div className="text-[10px] text-muted/40 mt-1">Proprietary AI Engine v9 Beta</div>
                   </div>
                   <div className="px-2 py-1 rounded-md text-[10px] font-mono uppercase" style={{ background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.2)", color: "#00ff88" }}>
                     Active
@@ -564,7 +564,7 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
                   <CortexAvatar size={72} />
                   <div className="text-center">
                     <div className="font-display font-bold text-xl text-white tracking-wide">CORTEX AI</div>
-                    <div className="text-[11px] font-mono text-muted/50 mt-1">v1.0.0 — OmegaTeck Technology</div>
+                    <div className="text-[11px] font-mono text-muted/50 mt-1">v9 Beta — OmegaTeck Technology</div>
                   </div>
                 </div>
 
@@ -573,7 +573,7 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
                   <div className="px-4" style={{ background: "#10101f" }}>
                     {[
                       { icon: <Wifi size={13} />, name: "OmegaTeck Core Server", status: "Connected", color: "#00ff88" },
-                      { icon: <Cpu size={13} />, name: "Anthropic AI API", status: "Available", color: "#00d0ff" },
+                      { icon: <Cpu size={13} />, name: "CORTEX AI Engine", status: "Available", color: "#00d0ff" },
                       { icon: <Shield size={13} />, name: "Secure session", status: "Active", color: "#6c3bff" },
                     ].map((item, i) => (
                       <div key={i} className="py-3 flex items-center gap-3 border-b border-white/4 last:border-0">
@@ -590,10 +590,10 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
 
                 <div className="p-4 rounded-xl space-y-2 text-[11px] font-mono" style={{ background: "#10101f", border: "1px solid rgba(255,255,255,0.04)" }}>
                   {[
-                    { k: "Platform", v: "CORTEX AI v1.0.0" },
+                    { k: "Platform", v: "CORTEX AI v9 Beta" },
                     { k: "Developer", v: "OmegaTeck Technology" },
                     { k: "Founder", v: "Tibor" },
-                    { k: "AI Engine", v: "Claude Sonnet 4.6" },
+                    { k: "AI Engine", v: "CORTEX AI Engine" },
                     { k: "Projects", v: "OmegaHumanity, VoidExio" },
                   ].map(({ k, v }, i) => (
                     <div key={i} className="flex justify-between">

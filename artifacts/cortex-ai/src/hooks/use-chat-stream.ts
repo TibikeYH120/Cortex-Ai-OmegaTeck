@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetAnthropicConversationQueryKey, getListAnthropicConversationsQueryKey } from "@workspace/api-client-react";
 
@@ -24,6 +24,32 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
   const queryClient = useQueryClient();
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // RAF-based throttle: accumulate text between frames so React only
+  // re-renders at most once per animation frame (~60fps) instead of
+  // once per SSE chunk (potentially hundreds per second).
+  const pendingTextRef = useRef<string>("");
+  const rafIdRef = useRef<number | null>(null);
+
+  const flushPending = useCallback(() => {
+    setStreamingContent(pendingTextRef.current);
+    rafIdRef.current = null;
+  }, []);
+
+  const scheduleStreamUpdate = useCallback((text: string) => {
+    pendingTextRef.current = text;
+    if (rafIdRef.current === null) {
+      rafIdRef.current = requestAnimationFrame(flushPending);
+    }
+  }, [flushPending]);
+
+  const cancelPendingFlush = useCallback(() => {
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    pendingTextRef.current = "";
+  }, []);
+
   const sendMessage = async (content: string, overrideConvId?: number, imageAttachment?: string) => {
     const targetId = overrideConvId || conversationId;
     if (!targetId) {
@@ -34,6 +60,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
     setIsStreaming(true);
     setStreamingContent("");
     setIsSearching(false);
+    pendingTextRef.current = "";
     let fullText = "";
     let usedSearch = false;
     let sources: WebSearchSource[] = [];
@@ -88,11 +115,9 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
               }
 
               if (data.content) {
-                // First content chunk means search is done, hide the searching indicator
                 if (isSearching) setIsSearching(false);
                 fullText += data.content;
-                setStreamingContent(fullText);
-                setIsSearching(false);
+                scheduleStreamUpdate(fullText);
               }
             } catch (err) {
               console.error("SSE parse error", err, line);
@@ -101,11 +126,11 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
         }
       }
 
+      cancelPendingFlush();
       setIsStreaming(false);
       setIsSearching(false);
       setStreamingContent("");
 
-      // Check if Claude wants to generate an image
       const imageMatch = fullText.match(IMAGE_PATTERN);
       if (imageMatch) {
         const imagePrompt = imageMatch[1].trim();
@@ -128,9 +153,6 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
           setIsGeneratingImage(false);
         }
 
-        // Only refresh the sidebar list, not the conversation detail.
-        // Refreshing the detail would overwrite local image messages with stale server data,
-        // because generated images are intentionally not persisted in the DB (they are ephemeral).
         queryClient.invalidateQueries({ queryKey: getListAnthropicConversationsQueryKey() });
         return;
       }
@@ -146,6 +168,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
         onError?.(err.message || "Error during generation.");
       }
     } finally {
+      cancelPendingFlush();
       setIsStreaming(false);
       setIsSearching(false);
       setStreamingContent("");
@@ -155,6 +178,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
   const stopStream = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
+      cancelPendingFlush();
       setIsStreaming(false);
       setIsSearching(false);
       setStreamingContent("");
@@ -166,8 +190,9 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
+      cancelPendingFlush();
     };
-  }, []);
+  }, [cancelPendingFlush]);
 
   return { sendMessage, isStreaming, streamingContent, stopStream, isGeneratingImage, isSearching };
 }

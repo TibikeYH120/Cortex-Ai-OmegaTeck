@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo, useCallback, useMemo } from "react";
 import { useAppState } from "@/hooks/use-app-state";
 import { useCreateAnthropicConversation, useGetAnthropicConversation } from "@workspace/api-client-react";
 import { useChatStream, type WebSearchSource } from "@/hooks/use-chat-stream";
@@ -134,13 +134,23 @@ export function ChatArea() {
     }
   }, [activeConversation, activeConversationId, isStreaming]);
 
-  const scrollToBottom = (smooth = true) => {
-    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
-  };
+  const scrollRafRef = useRef<number | null>(null);
+
+  const scrollToBottom = useCallback((smooth = true) => {
+    if (scrollRafRef.current !== null) return;
+    scrollRafRef.current = requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
+      scrollRafRef.current = null;
+    });
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [localMessages, streamingContent]);
+  }, [localMessages, scrollToBottom]);
+
+  useEffect(() => {
+    if (streamingContent) scrollToBottom(false);
+  }, [streamingContent, scrollToBottom]);
 
   const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
   const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
@@ -253,6 +263,12 @@ export function ChatArea() {
 
   const showWelcome = !activeConversationId && localMessages.length === 0;
 
+  const renderedMessages = useMemo(() => (
+    localMessages.map((msg, i) => (
+      <MessageBubble key={msg.id || i} message={msg} user={user} />
+    ))
+  ), [localMessages, user]);
+
   return (
     <main className="flex-1 flex flex-col h-[100dvh] relative bg-black/40 backdrop-blur-[2px] overflow-hidden">
       {/* Top Bar */}
@@ -337,9 +353,7 @@ export function ChatArea() {
               </motion.div>
             ) : (
               <motion.div key="messages" className="flex flex-col gap-6">
-                {localMessages.map((msg, i) => (
-                  <MessageBubble key={msg.id || i} message={msg} user={user} />
-                ))}
+                {renderedMessages}
 
                 {isStreaming && (
                   <MessageBubble
@@ -473,7 +487,7 @@ export function ChatArea() {
           </div>
           <div className="mt-2 hidden sm:flex justify-between items-center px-2">
             <span className="font-mono text-[10px] text-muted/60 tracking-wide">ENTER = send &nbsp;·&nbsp; SHIFT+ENTER = new line</span>
-            <span className="font-mono text-[10px] text-muted/40">claude-sonnet-4-6</span>
+            <span className="font-mono text-[10px] text-muted/40">CORTEX AI v9 Beta</span>
           </div>
         </div>
       </div>
@@ -542,7 +556,7 @@ function SourcesPanel({ sources }: { sources: WebSearchSource[] }) {
 
 // ── Message bubble ─────────────────────────────────────────────────────────────
 
-function MessageBubble({
+const MessageBubble = memo(function MessageBubble({
   message,
   user,
   isTyping = false,
@@ -717,4 +731,4 @@ function MessageBubble({
       </div>
     </motion.div>
   );
-}
+});
