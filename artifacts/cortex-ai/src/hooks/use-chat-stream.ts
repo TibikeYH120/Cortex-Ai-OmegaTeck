@@ -24,6 +24,10 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
   const [streamingContent, setStreamingContent] = useState("");
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  // Live char counter shown during the silent buffering phase
+  const [generatingCharCount, setGeneratingCharCount] = useState(0);
+  const charCountRef = useRef(0);
+  const charCountIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isSearchingRef = useRef(false);
   const rafIdRef = useRef<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -78,6 +82,11 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
     setStreamingContent("");
     setIsSearching(false);
     isSearchingRef.current = false;
+    charCountRef.current = 0;
+    setGeneratingCharCount(0);
+    charCountIntervalRef.current = setInterval(() => {
+      setGeneratingCharCount(charCountRef.current);
+    }, 500);
     let fullText = "";
     let usedSearch = false;
     let sources: WebSearchSource[] = [];
@@ -139,6 +148,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
                 }
                 // Buffer silently — no state update during generation phase
                 fullText += data.content;
+                charCountRef.current = fullText.length;
               }
             } catch (err) {
               console.error("SSE parse error", err, line);
@@ -148,6 +158,11 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
       }
 
       // Phase 1 done — server finished generating
+      if (charCountIntervalRef.current !== null) {
+        clearInterval(charCountIntervalRef.current);
+        charCountIntervalRef.current = null;
+      }
+      setGeneratingCharCount(0);
       setIsGenerating(false);
       isSearchingRef.current = false;
       setIsSearching(false);
@@ -204,18 +219,27 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
+    if (charCountIntervalRef.current !== null) {
+      clearInterval(charCountIntervalRef.current);
+      charCountIntervalRef.current = null;
+    }
     cancelAnimation();
     setIsGenerating(false);
     setIsTypewriting(false);
     isSearchingRef.current = false;
     setIsSearching(false);
     setStreamingContent("");
+    setGeneratingCharCount(0);
   };
 
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
+      }
+      if (charCountIntervalRef.current !== null) {
+        clearInterval(charCountIntervalRef.current);
+        charCountIntervalRef.current = null;
       }
       cancelAnimation();
     };
@@ -229,5 +253,6 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
     stopStream,
     isGeneratingImage,
     isSearching,
+    generatingCharCount,
   };
 }

@@ -44,7 +44,7 @@ export function ChatArea() {
   // and cleared in a useEffect after the render — avoiding render-phase side effects.
   const lastStreamedIdRef = useRef<number | null>(null);
 
-  const { sendMessage, isStreaming, isGenerating, streamingContent, stopStream, isGeneratingImage, isSearching } = useChatStream({
+  const { sendMessage, isStreaming, isGenerating, streamingContent, stopStream, isGeneratingImage, isSearching, generatingCharCount } = useChatStream({
     conversationId: activeConversationId,
     onFinished: (fullContent, usedSearch, sources) => {
       if (fullContent) {
@@ -395,6 +395,7 @@ export function ChatArea() {
                     isTyping={!streamingContent && !isSearching}
                     isStreaming
                     isSearching={isSearching && !streamingContent}
+                    generatingCharCount={generatingCharCount}
                   />
                 )}
 
@@ -597,6 +598,7 @@ const MessageBubble = memo(function MessageBubble({
   isGeneratingImage = false,
   isSearching = false,
   skipEntryAnimation = false,
+  generatingCharCount = 0,
 }: {
   message: any;
   user: any;
@@ -605,6 +607,7 @@ const MessageBubble = memo(function MessageBubble({
   isGeneratingImage?: boolean;
   isSearching?: boolean;
   skipEntryAnimation?: boolean;
+  generatingCharCount?: number;
 }) {
   const isAI = message.role === "assistant";
   const [copied, setCopied] = useState(false);
@@ -703,10 +706,17 @@ const MessageBubble = memo(function MessageBubble({
               <div className="h-px bg-gradient-to-r from-[#00d0ff]/30 via-[#6c3bff]/20 to-transparent animate-pulse" />
             </div>
           ) : isTyping ? (
-            <div className="flex gap-1.5 items-center py-1">
-              <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
-              <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
-              <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+            <div className="flex flex-col gap-1.5 py-1">
+              <div className="flex gap-1.5 items-center">
+                <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+              </div>
+              {generatingCharCount > 0 && (
+                <div className="text-[10px] font-mono text-muted/60 tabular-nums tracking-wide">
+                  {generatingCharCount.toLocaleString()} chars
+                </div>
+              )}
             </div>
           ) : message.type === "image" && message.imageData ? (
             <div className="flex flex-col gap-3">
