@@ -4,10 +4,11 @@ import { useCreateAnthropicConversation, useGetAnthropicConversation } from "@wo
 import { useChatStream, type WebSearchSource } from "@/hooks/use-chat-stream";
 import { useVoice } from "@/hooks/use-voice";
 import { MarkdownRenderer } from "./MarkdownRenderer";
-import { Send, Menu, Plus, StopCircle, Copy, Check, RotateCcw, Paperclip, X, ChevronDown, ChevronUp, Globe, ExternalLink, Volume2, VolumeX, Mic, MicOff, Loader2 } from "lucide-react";
+import { Send, Menu, Plus, StopCircle, Copy, Check, RotateCcw, Paperclip, X, ChevronDown, ChevronUp, Globe, ExternalLink, Volume2, VolumeX, Mic, MicOff, Loader2, Radio } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn, formatDate } from "@/lib/utils";
 import { UserAvatar, CortexAvatar } from "./AvatarUtils";
+import { VoiceMode } from "./VoiceMode";
 
 // Matches the full-string form Claude outputs when generating images.
 // Anchored on trimmed content so normal assistant messages that happen to mention
@@ -34,6 +35,7 @@ export function ChatArea() {
   const [imageAttachment, setImageAttachment] = useState<string | null>(null);
   const [imageAttachmentName, setImageAttachmentName] = useState<string>("");
   const isGeneratingImageRef = useRef(false);
+  const [voiceModeOpen, setVoiceModeOpen] = useState(false);
 
   const { data: activeConversation } = useGetAnthropicConversation(activeConversationId!, {
     query: { enabled: !!activeConversationId }
@@ -531,6 +533,16 @@ export function ChatArea() {
               >
                 {voice.isRecording ? <MicOff size={17} /> : <Mic size={17} />}
               </button>
+
+              {/* Voice Mode button */}
+              <button
+                onClick={() => setVoiceModeOpen(true)}
+                disabled={isStreaming || isGeneratingImage || voice.isRecording}
+                title="Voice Mode — Live conversation"
+                className="w-9 h-9 flex items-center justify-center rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed text-muted hover:text-[#00d0ff] hover:bg-[#00d0ff]/5"
+              >
+                <Radio size={17} />
+              </button>
             </div>
 
             {voice.isRecording ? (
@@ -570,6 +582,8 @@ export function ChatArea() {
           </div>
         </div>
       </div>
+
+      {voiceModeOpen && <VoiceMode onClose={() => setVoiceModeOpen(false)} />}
     </main>
   );
 }
