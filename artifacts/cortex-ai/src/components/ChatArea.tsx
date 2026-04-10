@@ -2,8 +2,9 @@ import { useState, useRef, useEffect, memo, useCallback, useMemo } from "react";
 import { useAppState } from "@/hooks/use-app-state";
 import { useCreateAnthropicConversation, useGetAnthropicConversation } from "@workspace/api-client-react";
 import { useChatStream, type WebSearchSource } from "@/hooks/use-chat-stream";
+import { useVoice } from "@/hooks/use-voice";
 import { MarkdownRenderer } from "./MarkdownRenderer";
-import { Send, Menu, Plus, StopCircle, Copy, Check, RotateCcw, Paperclip, X, ChevronDown, ChevronUp, Globe, ExternalLink } from "lucide-react";
+import { Send, Menu, Plus, StopCircle, Copy, Check, RotateCcw, Paperclip, X, ChevronDown, ChevronUp, Globe, ExternalLink, Volume2, VolumeX, Mic, MicOff, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn, formatDate } from "@/lib/utils";
 import { UserAvatar, CortexAvatar } from "./AvatarUtils";
@@ -22,6 +23,7 @@ function filterServerMessages(msgs: any[]): any[] {
 
 export function ChatArea() {
   const { user, activeConversationId, setActiveConversationId, setSidebarOpen } = useAppState();
+  const voice = useVoice();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -58,6 +60,9 @@ export function ChatArea() {
           sources: usedSearch ? sources : [],
           createdAt: new Date().toISOString()
         }]);
+        if (voice.autoRead) {
+          voice.speak(fullContent, newId);
+        }
       }
       setTimeout(() => textareaRef.current?.focus(), 100);
     },
@@ -284,16 +289,23 @@ export function ChatArea() {
     return localMessages.map((msg, i) => {
       const skipEntryAnimation =
         streamedId !== null && msg.id === streamedId && msg.role === "assistant";
+      const isThisPlaying =
+        voice.activeMessageId === msg.id && voice.isPlaying;
+      const isLoadingThisAudio =
+        voice.activeMessageId === msg.id && voice.isLoadingAudio;
       return (
         <MessageBubble
           key={msg.id || i}
           message={msg}
           user={user}
           skipEntryAnimation={skipEntryAnimation}
+          onSpeak={msg.role === "assistant" && msg.content ? () => voice.speak(msg.content, msg.id) : undefined}
+          isThisPlaying={isThisPlaying}
+          isLoadingThisAudio={isLoadingThisAudio}
         />
       );
     });
-  }, [localMessages, user]);
+  }, [localMessages, user, voice.activeMessageId, voice.isPlaying, voice.isLoadingAudio, voice.speak]);
 
   // Clear the streamed-id ref after the render so future re-renders animate normally.
   // useEffect runs after paint — by then Framer Motion has already committed the
@@ -480,8 +492,8 @@ export function ChatArea() {
           </AnimatePresence>
 
           <div className="relative flex items-end bg-s2 border border-border rounded-2xl overflow-hidden focus-within:border-border2 focus-within:shadow-[0_0_0_3px_rgba(0,208,255,0.05),_0_0_20px_rgba(0,208,255,0.08)] transition-all">
-            {/* Paperclip button */}
-            <div className="p-2 pl-3 shrink-0">
+            {/* Left buttons: Paperclip + Mic */}
+            <div className="p-2 pl-3 flex items-center gap-1 shrink-0">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -497,6 +509,28 @@ export function ChatArea() {
               >
                 <Paperclip size={18} />
               </button>
+              <button
+                onClick={async () => {
+                  if (voice.isRecording) {
+                    try {
+                      const transcript = await voice.stopRecording();
+                      if (transcript) setInput(prev => prev ? prev + " " + transcript : transcript);
+                    } catch {}
+                  } else {
+                    await voice.startRecording();
+                  }
+                }}
+                disabled={isStreaming || isGeneratingImage}
+                title={voice.isRecording ? "Stop recording" : "Voice input"}
+                className={cn(
+                  "w-9 h-9 flex items-center justify-center rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed",
+                  voice.isRecording
+                    ? "text-[#ff2e7e] bg-[#ff2e7e]/10 border border-[#ff2e7e]/30 shadow-[0_0_12px_rgba(255,46,126,0.3)] animate-pulse"
+                    : "text-muted hover:text-[#ff2e7e] hover:bg-white/5"
+                )}
+              >
+                {voice.isRecording ? <MicOff size={17} /> : <Mic size={17} />}
+              </button>
             </div>
 
             <textarea
@@ -504,7 +538,7 @@ export function ChatArea() {
               value={input}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
-              placeholder="Message Cortex AI..."
+              placeholder={voice.isRecording ? "Listening…" : "Message Cortex AI..."}
               disabled={isStreaming}
               className="w-full bg-transparent border-none outline-none text-foreground text-sm resize-none py-4 px-2 max-h-[180px] min-h-[56px] disabled:opacity-50"
               rows={1}
@@ -599,6 +633,9 @@ const MessageBubble = memo(function MessageBubble({
   isSearching = false,
   skipEntryAnimation = false,
   generatingCharCount = 0,
+  onSpeak,
+  isThisPlaying = false,
+  isLoadingThisAudio = false,
 }: {
   message: any;
   user: any;
@@ -608,6 +645,9 @@ const MessageBubble = memo(function MessageBubble({
   isSearching?: boolean;
   skipEntryAnimation?: boolean;
   generatingCharCount?: number;
+  onSpeak?: () => void;
+  isThisPlaying?: boolean;
+  isLoadingThisAudio?: boolean;
 }) {
   const isAI = message.role === "assistant";
   const [copied, setCopied] = useState(false);
@@ -648,12 +688,35 @@ const MessageBubble = memo(function MessageBubble({
             <span className="text-[10px] font-mono text-muted/60">{formatDate(message.createdAt)}</span>
           )}
           {isAI && !isTyping && !isGeneratingImage && !isSearching && message.content && (
-            <button
-              onClick={handleCopy}
-              className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[10px] font-mono text-muted hover:text-white transition-all"
-            >
-              {copied ? <Check size={10} className="text-[#00ff88]" /> : <Copy size={10} />}
-            </button>
+            <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 transition-all">
+              <button
+                onClick={handleCopy}
+                className="flex items-center gap-1 text-[10px] font-mono text-muted hover:text-white transition-colors"
+                title="Copy"
+              >
+                {copied ? <Check size={10} className="text-[#00ff88]" /> : <Copy size={10} />}
+              </button>
+              {onSpeak && (
+                <button
+                  onClick={onSpeak}
+                  title={isThisPlaying ? "Stop" : isLoadingThisAudio ? "Loading audio…" : "Read aloud"}
+                  className={cn(
+                    "flex items-center justify-center text-[10px] font-mono transition-all",
+                    isThisPlaying ? "text-[#00d0ff]" :
+                    isLoadingThisAudio ? "text-muted/60 cursor-wait" :
+                    "text-muted hover:text-[#00d0ff]"
+                  )}
+                >
+                  {isLoadingThisAudio ? (
+                    <Loader2 size={10} className="animate-spin" />
+                  ) : isThisPlaying ? (
+                    <VolumeX size={10} />
+                  ) : (
+                    <Volume2 size={10} />
+                  )}
+                </button>
+              )}
+            </div>
           )}
         </div>
 

@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import {
   X, Save, ShieldAlert, User, Cpu, Wifi, Lock, BarChart3,
   Eye, EyeOff, CheckCircle2, AlertCircle, MessageSquare, Zap, Shield,
-  Info, Globe, Volume2, Palette, Key
+  Info, Globe, Volume2, Palette, Key, Mic
 } from "lucide-react";
 import { useGetProfile, useUpdateProfile, getGetProfileQueryKey, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useAppState } from "@/hooks/use-app-state";
 import { useQueryClient } from "@tanstack/react-query";
 import { UserAvatar, CortexAvatar } from "./AvatarUtils";
+import { VOICE_OPTIONS, type VoiceId } from "@/hooks/use-voice";
 
 interface ModalProps {
   open: boolean;
@@ -393,8 +394,11 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
   );
 }
 
+const VOICE_STORAGE_KEY = "cortex_voice_id";
+const AUTO_READ_STORAGE_KEY = "cortex_voice_auto_read";
+
 export function SettingsModal({ open, onOpenChange }: ModalProps) {
-  const [settingsTab, setSettingsTab] = useState<"ai" | "appearance" | "notifications" | "about">("ai");
+  const [settingsTab, setSettingsTab] = useState<"ai" | "voice" | "appearance" | "notifications" | "about">("ai");
   const [streamingMode, setStreamingMode] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -402,12 +406,34 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
   const [compactMode, setCompactMode] = useState(false);
   const [codeHighlight, setCodeHighlight] = useState(true);
 
+  const [selectedVoice, setSelectedVoice] = useState<VoiceId>(() => {
+    try {
+      const v = localStorage.getItem(VOICE_STORAGE_KEY);
+      if (v && VOICE_OPTIONS.some(o => o.id === v)) return v as VoiceId;
+    } catch {}
+    return "nova";
+  });
+  const [autoRead, setAutoRead] = useState<boolean>(() => {
+    try { return localStorage.getItem(AUTO_READ_STORAGE_KEY) === "true"; } catch { return false; }
+  });
+
+  const handleVoiceSelect = (id: VoiceId) => {
+    setSelectedVoice(id);
+    try { localStorage.setItem(VOICE_STORAGE_KEY, id); } catch {}
+  };
+
+  const handleAutoRead = (v: boolean) => {
+    setAutoRead(v);
+    try { localStorage.setItem(AUTO_READ_STORAGE_KEY, String(v)); } catch {}
+  };
+
   useEffect(() => { if (!open) setSettingsTab("ai"); }, [open]);
 
   if (!open) return null;
 
   const tabs = [
     { id: "ai", label: "AI Model", icon: <Cpu size={13} /> },
+    { id: "voice", label: "Voice", icon: <Mic size={13} /> },
     { id: "appearance", label: "Appearance", icon: <Palette size={13} /> },
     { id: "notifications", label: "Notifications", icon: <Volume2 size={13} /> },
     { id: "about", label: "About", icon: <Info size={13} /> },
@@ -452,6 +478,55 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
 
           {/* Body */}
           <div className="overflow-y-auto flex-1 p-6">
+            {settingsTab === "voice" && (
+              <div className="space-y-5">
+                {/* Auto-read toggle */}
+                <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>
+                  <div className="px-4 py-2 text-[10px] font-mono text-muted/50 uppercase tracking-widest" style={{ background: "#0e0e1e" }}>Playback</div>
+                  <div className="px-4" style={{ background: "#10101f" }}>
+                    <SettingRow icon={<Volume2 size={14} />} label="Auto-read responses" desc="Automatically read AI replies aloud">
+                      <Toggle value={autoRead} onChange={handleAutoRead} />
+                    </SettingRow>
+                  </div>
+                </div>
+
+                {/* Voice selector */}
+                <div>
+                  <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-3">Voice character</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {VOICE_OPTIONS.map(v => (
+                      <button
+                        key={v.id}
+                        onClick={() => handleVoiceSelect(v.id)}
+                        className="flex flex-col items-start gap-2 p-4 rounded-xl transition-all text-left"
+                        style={{
+                          background: selectedVoice === v.id ? `${v.color}12` : "#10101f",
+                          border: selectedVoice === v.id ? `1.5px solid ${v.color}60` : "1px solid rgba(255,255,255,0.05)",
+                          boxShadow: selectedVoice === v.id ? `0 0 16px ${v.color}20` : "none",
+                        }}
+                      >
+                        <div className="flex items-center gap-2 w-full">
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: `${v.color}20`, border: `1px solid ${v.color}40` }}>
+                            <Mic size={11} style={{ color: v.color }} />
+                          </div>
+                          <span className="font-display font-bold text-sm" style={{ color: selectedVoice === v.id ? v.color : "rgba(255,255,255,0.85)" }}>{v.label}</span>
+                          {selectedVoice === v.id && (
+                            <div className="ml-auto w-1.5 h-1.5 rounded-full" style={{ background: v.color, boxShadow: `0 0 6px ${v.color}` }} />
+                          )}
+                        </div>
+                        <span className="text-[10px] text-muted/50 font-mono">{v.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl text-xs text-muted/50" style={{ background: "rgba(0,208,255,0.03)", border: "1px solid rgba(0,208,255,0.08)" }}>
+                  <Mic size={13} className="text-[#00d0ff]/40 mb-2" />
+                  Click the speaker icon on any AI message to hear it read aloud. Use the mic button in the chat input for voice input. Powered by ElevenLabs.
+                </div>
+              </div>
+            )}
+
             {settingsTab === "ai" && (
               <div className="space-y-5">
                 {/* Model Card */}
