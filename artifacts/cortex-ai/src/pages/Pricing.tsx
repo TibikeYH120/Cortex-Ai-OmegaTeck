@@ -4,22 +4,22 @@ import { Check, Zap, ArrowLeft, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 
 const FEATURES = [
-  "Korlátlan üzenetek",
-  "CORTEX modell (Claude Sonnet)",
-  "Képgenerálás (Gemini Vision AI)",
-  "Webes keresés valós időben",
-  "Hangalapú bevitel & felolvasás",
-  "Voice Mode – élő beszélgetés",
-  "Teljes előzmény megőrzés",
-  "Képcsatolás & elemzés",
-  "Prioritásos válaszidő",
-  "Korai hozzáférés új funkciókhoz",
+  "Unlimited messages",
+  "CORTEX model (Claude Sonnet)",
+  "Image generation (Gemini Vision AI)",
+  "Real-time web search",
+  "Voice input & text-to-speech",
+  "Voice Mode – live conversation",
+  "Full conversation history",
+  "Image attachment & analysis",
+  "Priority response time",
+  "Early access to new features",
 ];
 
 const FREE_FEATURES = [
-  "Napi 10 üzenet",
-  "CORTEX LITE modell",
-  "Korlátozott előzmény",
+  "10 messages per day",
+  "CORTEX LITE model",
+  "Limited conversation history",
 ];
 
 export function Pricing() {
@@ -57,7 +57,7 @@ export function Pricing() {
         >
           <Link href="/" className="inline-flex items-center gap-2 text-sm font-mono text-muted hover:text-primary transition-colors group">
             <ArrowLeft size={15} className="group-hover:-translate-x-1 transition-transform" />
-            Vissza az apphoz
+            Back to app
           </Link>
         </motion.div>
 
@@ -70,14 +70,14 @@ export function Pricing() {
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/20 bg-primary/5 mb-6">
             <Sparkles size={13} className="text-primary" />
-            <span className="font-mono text-[11px] text-primary tracking-widest uppercase">Válassz tervet</span>
+            <span className="font-mono text-[11px] text-primary tracking-widest uppercase">Choose your plan</span>
           </div>
 
           <h1 className="font-display font-bold text-3xl sm:text-5xl tracking-wide text-white mb-4">
-            Egyszerű <span className="text-primary text-glow">árazás</span>
+            Simple <span className="text-primary text-glow">pricing</span>
           </h1>
           <p className="text-muted text-sm sm:text-base max-w-md mx-auto font-light">
-            Engedd szabadjára a teljes CORTEX AI teljesítményt. Nincs rejtett díj, bármikor lemondható.
+            Unlock the full power of CORTEX AI. No hidden fees, cancel anytime.
           </p>
         </motion.div>
 
@@ -88,7 +88,7 @@ export function Pricing() {
           transition={{ delay: 0.1 }}
           className="flex items-center justify-center gap-4 mb-12"
         >
-          <span className={`font-mono text-sm transition-colors ${!yearly ? "text-white" : "text-muted/60"}`}>Havi</span>
+          <span className={`font-mono text-sm transition-colors ${!yearly ? "text-white" : "text-muted/60"}`}>Monthly</span>
           <button
             onClick={() => setYearly(v => !v)}
             className={`relative w-14 h-7 rounded-full border transition-all duration-300 ${
@@ -102,14 +102,14 @@ export function Pricing() {
             />
           </button>
           <div className="flex items-center gap-2">
-            <span className={`font-mono text-sm transition-colors ${yearly ? "text-white" : "text-muted/60"}`}>Éves</span>
+            <span className={`font-mono text-sm transition-colors ${yearly ? "text-white" : "text-muted/60"}`}>Yearly</span>
             {yearly && (
               <motion.span
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="font-mono text-[10px] bg-[#00ff88]/10 border border-[#00ff88]/30 text-[#00ff88] px-2 py-0.5 rounded-full tracking-widest uppercase"
               >
-                -{saving}€ spórolás
+                Save €{saving}
               </motion.span>
             )}
           </div>
@@ -126,13 +126,13 @@ export function Pricing() {
             className="relative flex flex-col rounded-2xl border border-white/8 bg-[#06060f] p-7"
           >
             <div className="mb-6">
-              <div className="font-mono text-[10px] text-muted/60 tracking-widest uppercase mb-2">Alap</div>
+              <div className="font-mono text-[10px] text-muted/60 tracking-widest uppercase mb-2">Basic</div>
               <div className="font-display font-bold text-xl text-white mb-1">CORTEX Free</div>
               <div className="flex items-end gap-1 mb-4">
                 <span className="font-display font-bold text-4xl text-white">€0</span>
-                <span className="font-mono text-sm text-muted/60 mb-1">/hó</span>
+                <span className="font-mono text-sm text-muted/60 mb-1">/mo</span>
               </div>
-              <p className="text-sm text-muted/70 font-light">Próbáld ki ingyen, korlátokkal.</p>
+              <p className="text-sm text-muted/70 font-light">Try it for free with limitations.</p>
             </div>
 
             <div className="flex flex-col gap-3 mb-8 flex-1">
@@ -147,7 +147,7 @@ export function Pricing() {
             </div>
 
             <button className="w-full py-3 rounded-xl border border-white/10 bg-white/4 text-sm font-mono text-muted/70 hover:text-white hover:border-white/20 hover:bg-white/6 transition-all tracking-wide">
-              Jelenlegi terv
+              Current plan
             </button>
           </motion.div>
 
@@ -170,13 +170,13 @@ export function Pricing() {
             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
               <div className="flex items-center gap-1.5 px-4 py-1 rounded-full bg-gradient-to-r from-primary to-secondary text-black font-mono font-bold text-[10px] tracking-widest uppercase shadow-[0_0_20px_rgba(0,208,255,0.4)]">
                 <Zap size={10} />
-                Ajánlott
+                Recommended
               </div>
             </div>
 
             <div className="relative z-10 flex flex-col p-7 flex-1">
               <div className="mb-6 mt-3">
-                <div className="font-mono text-[10px] text-primary/70 tracking-widest uppercase mb-2">Prémium</div>
+                <div className="font-mono text-[10px] text-primary/70 tracking-widest uppercase mb-2">Premium</div>
                 <div className="font-display font-bold text-xl text-white mb-1">CORTEX Plus</div>
 
                 <motion.div
@@ -188,7 +188,7 @@ export function Pricing() {
                   <span className="font-display font-bold text-4xl text-white">
                     €{yearly ? yearlyMonthly : monthlyPrice}
                   </span>
-                  <span className="font-mono text-sm text-muted/60 mb-1">/hó</span>
+                  <span className="font-mono text-sm text-muted/60 mb-1">/mo</span>
                 </motion.div>
 
                 {yearly && (
@@ -197,11 +197,11 @@ export function Pricing() {
                     animate={{ opacity: 1 }}
                     className="font-mono text-[11px] text-muted/50 mb-3"
                   >
-                    €{yearlyPrice} számlázva évente
+                    €{yearlyPrice} billed annually
                   </motion.div>
                 )}
 
-                <p className="text-sm text-muted/70 font-light">Teljes hozzáférés minden funkcióhoz.</p>
+                <p className="text-sm text-muted/70 font-light">Full access to every feature.</p>
               </div>
 
               <div className="flex flex-col gap-3 mb-8 flex-1">
@@ -216,11 +216,11 @@ export function Pricing() {
               </div>
 
               <button className="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-secondary text-black font-mono font-bold text-sm tracking-wider uppercase hover:shadow-[0_0_28px_rgba(0,208,255,0.4)] hover:-translate-y-0.5 transition-all shadow-[0_0_16px_rgba(0,208,255,0.25)]">
-                Előfizetés indítása
+                Get started
               </button>
 
               <p className="text-center font-mono text-[10px] text-muted/40 mt-3 tracking-wide">
-                Bármikor lemondható · Nincs rejtett díj
+                Cancel anytime · No hidden fees
               </p>
             </div>
           </motion.div>
@@ -234,7 +234,7 @@ export function Pricing() {
           className="text-center mt-14"
         >
           <div className="inline-flex items-center gap-6 flex-wrap justify-center">
-            {["Biztonságos fizetés", "GDPR megfelelő", "Magyar támogatás"].map((item, i) => (
+            {["Secure payments", "GDPR compliant", "Worldwide support"].map((item, i) => (
               <div key={i} className="flex items-center gap-2">
                 <div className="w-1 h-1 rounded-full bg-primary/50" />
                 <span className="font-mono text-[11px] text-muted/50 tracking-wide">{item}</span>

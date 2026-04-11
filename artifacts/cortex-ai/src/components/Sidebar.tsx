@@ -168,7 +168,7 @@ export function Sidebar() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-display font-bold text-white leading-tight">CORTEX Plus</div>
-                <div className="text-[10px] font-mono text-primary/70 leading-tight">€12.99/hó · Teljes hozzáférés</div>
+                <div className="text-[10px] font-mono text-primary/70 leading-tight">€12.99/mo · Full access</div>
               </div>
               <div className="text-[9px] font-mono text-primary/50 group-hover:text-primary/80 transition-colors tracking-widest uppercase">→</div>
             </a>
