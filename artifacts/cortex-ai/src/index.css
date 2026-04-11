@@ -43,7 +43,7 @@
 
 @layer base {
   body {
-    @apply bg-background text-foreground font-sans antialiased overflow-hidden selection:bg-primary/30 selection:text-primary;
+    @apply bg-background text-foreground font-sans antialiased selection:bg-primary/30 selection:text-primary;
   }
   
   /* Custom scrollbar for cyberpunk feel */
