@@ -42,8 +42,40 @@
 }
 
 @layer base {
+  /* Prevent iOS Safari zoom on input focus */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  
   body {
     @apply bg-background text-foreground font-sans antialiased overflow-hidden selection:bg-primary/30 selection:text-primary;
+    /* iOS safe areas */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    /* Prevent pull-to-refresh on mobile */
+    overscroll-behavior: none;
+    /* Prevent text selection on tap */
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Ensure minimum 16px font size on inputs to prevent iOS zoom */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+  
+  /* Improve touch targets */
+  button, [role="button"], a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Small buttons exception */
+  .touch-target-small {
+    min-height: 32px;
+    min-width: 32px;
   }
   
   /* Custom scrollbar for cyberpunk feel */
