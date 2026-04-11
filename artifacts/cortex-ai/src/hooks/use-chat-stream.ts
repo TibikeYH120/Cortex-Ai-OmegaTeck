@@ -69,7 +69,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
     rafIdRef.current = requestAnimationFrame(tick);
   }, []);
 
-  const sendMessage = async (content: string, overrideConvId?: number, imageAttachment?: string) => {
+  const sendMessage = async (content: string, overrideConvId?: number, imageAttachments?: string[]) => {
     const targetId = overrideConvId || conversationId;
     if (!targetId) {
       onError?.("No active conversation.");
@@ -107,7 +107,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ content, imageAttachment, systemAbout, systemRespond, cortexModel }),
+        body: JSON.stringify({ content, imageAttachments, systemAbout, systemRespond, cortexModel }),
         signal: abortControllerRef.current.signal,
       });
 

@@ -66,8 +66,7 @@ export function ChatArea() {
 
   const [localMessages, setLocalMessages] = useState<any[]>([]);
   const [lastUserMessage, setLastUserMessage] = useState<string>("");
-  const [imageAttachment, setImageAttachment] = useState<string | null>(null);
-  const [imageAttachmentName, setImageAttachmentName] = useState<string>("");
+  const [imageAttachments, setImageAttachments] = useState<Array<{ data: string; name: string }>>([]);
   const isGeneratingImageRef = useRef(false);
   const [voiceModeOpen, setVoiceModeOpen] = useState(false);
 
@@ -152,7 +151,7 @@ export function ChatArea() {
           });
           if (localMatch) usedLocalIds.add(localMatch.id);
           const result = { ...serverMsg };
-          if (localMatch?.imageAttachment) result.imageAttachment = localMatch.imageAttachment;
+          if (localMatch?.imageAttachments) result.imageAttachments = localMatch.imageAttachments;
           if (localMatch?.usedSearch) {
             result.usedSearch = localMatch.usedSearch;
             result.sources = localMatch.sources;
@@ -210,53 +209,63 @@ export function ChatArea() {
 
   const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
   const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+  const MAX_ATTACHMENTS = 10;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
     e.target.value = "";
-    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
-      setLocalMessages(prev => [...prev, {
-        id: Date.now(),
-        role: "assistant",
-        content: "⚠ Unsupported file type. Please attach a JPEG, PNG, GIF, or WEBP image.",
-        createdAt: new Date().toISOString()
-      }]);
+    if (!files.length) return;
+
+    const remaining = MAX_ATTACHMENTS - imageAttachments.length;
+    if (remaining <= 0) {
+      setLocalMessages(prev => [...prev, { id: Date.now(), role: "assistant", content: "⚠ Maximum 10 images per message.", createdAt: new Date().toISOString() }]);
       return;
     }
-    if (file.size > MAX_IMAGE_SIZE) {
-      setLocalMessages(prev => [...prev, {
-        id: Date.now(),
-        role: "assistant",
-        content: "⚠ Image too large. Maximum size is 5 MB.",
-        createdAt: new Date().toISOString()
-      }]);
-      return;
+
+    const toProcess = files.slice(0, remaining);
+    const errors: string[] = [];
+
+    toProcess.forEach(file => {
+      if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+        errors.push(`⚠ "${file.name}" is not supported. Use JPEG, PNG, GIF, or WEBP.`);
+        return;
+      }
+      if (file.size > MAX_IMAGE_SIZE) {
+        errors.push(`⚠ "${file.name}" is too large. Max 5 MB per image.`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setImageAttachments(prev => {
+          if (prev.length >= MAX_ATTACHMENTS) return prev;
+          return [...prev, { data: ev.target?.result as string, name: file.name }];
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+
+    if (errors.length > 0) {
+      setLocalMessages(prev => [...prev, { id: Date.now(), role: "assistant", content: errors.join("\n"), createdAt: new Date().toISOString() }]);
     }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setImageAttachment(ev.target?.result as string);
-      setImageAttachmentName(file.name);
-    };
-    reader.readAsDataURL(file);
   };
 
-  const clearAttachment = () => {
-    setImageAttachment(null);
-    setImageAttachmentName("");
+  const removeAttachment = (idx: number) => {
+    setImageAttachments(prev => prev.filter((_, i) => i !== idx));
   };
+
+  const clearAttachments = () => setImageAttachments([]);
 
   const handleSend = async (overrideContent?: string) => {
     const content = (overrideContent || input).trim();
-    if ((!content && !imageAttachment) || isStreaming || isGeneratingImage) return;
+    if ((!content && imageAttachments.length === 0) || isStreaming || isGeneratingImage) return;
 
     if (!overrideContent) {
       setInput("");
       if (textareaRef.current) textareaRef.current.style.height = "auto";
     }
 
-    const attachmentToSend = imageAttachment;
-    clearAttachment();
+    const attachmentsToSend = [...imageAttachments];
+    clearAttachments();
 
     setLastUserMessage(content);
 
@@ -264,7 +273,7 @@ export function ChatArea() {
       id: Date.now(),
       role: "user",
       content,
-      imageAttachment: attachmentToSend,
+      imageAttachments: attachmentsToSend,
       createdAt: new Date().toISOString()
     };
     setLocalMessages(prev => [...prev, tempUserMsg]);
@@ -279,7 +288,7 @@ export function ChatArea() {
         setActiveConversationId(targetConvId);
       }
 
-      await sendMessage(content, targetConvId, attachmentToSend || undefined);
+      await sendMessage(content, targetConvId, attachmentsToSend.length > 0 ? attachmentsToSend.map(a => a.data) : undefined);
 
     } catch (err: any) {
       console.error(err);
@@ -497,31 +506,45 @@ export function ChatArea() {
       <div className="p-3 sm:p-4 lg:p-6 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-border bg-black/60 backdrop-blur-xl shrink-0 z-10">
         <div className="max-w-3xl mx-auto">
 
-          {/* Image attachment preview */}
+          {/* Image attachments preview */}
           <AnimatePresence>
-            {imageAttachment && (
+            {imageAttachments.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, height: 0, marginBottom: 0 }}
                 animate={{ opacity: 1, height: "auto", marginBottom: 8 }}
                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
                 className="overflow-hidden"
               >
-                <div className="flex items-center gap-3 p-2 bg-s2 border border-border rounded-xl">
-                  <img
-                    src={imageAttachment}
-                    alt="attachment"
-                    className="w-14 h-14 object-cover rounded-lg border border-border shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-mono text-[10px] text-primary tracking-widest uppercase mb-0.5">Image attached</div>
-                    <div className="text-xs text-muted truncate">{imageAttachmentName}</div>
+                <div className="p-2 bg-s2 border border-border rounded-xl">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-mono text-[10px] text-primary tracking-widest uppercase">
+                      {imageAttachments.length} image{imageAttachments.length > 1 ? "s" : ""} attached
+                    </div>
+                    <button
+                      onClick={clearAttachments}
+                      className="text-[10px] text-muted hover:text-white transition-colors"
+                    >
+                      Remove all
+                    </button>
                   </div>
-                  <button
-                    onClick={clearAttachment}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-muted hover:text-white hover:bg-white/10 transition-all shrink-0"
-                  >
-                    <X size={14} />
-                  </button>
+                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                    {imageAttachments.map((att, idx) => (
+                      <div key={idx} className="relative shrink-0 group">
+                        <img
+                          src={att.data}
+                          alt={att.name}
+                          className="w-16 h-16 object-cover rounded-lg border border-border"
+                        />
+                        <button
+                          onClick={() => removeAttachment(idx)}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center rounded-full bg-black border border-border text-muted hover:text-white hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100"
+                        >
+                          <X size={10} />
+                        </button>
+                        <div className="text-[9px] text-muted mt-0.5 max-w-[64px] truncate">{att.name}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -535,6 +558,7 @@ export function ChatArea() {
                 type="file"
                 accept="image/jpeg,image/png,image/gif,image/webp"
                 className="hidden"
+                multiple
                 onChange={handleFileChange}
               />
               <button
@@ -603,7 +627,7 @@ export function ChatArea() {
             <div className="p-1.5 sm:p-2 shrink-0">
               <button
                 onClick={() => handleSend()}
-                disabled={(!input.trim() && !imageAttachment) || isStreaming || isGeneratingImage || voice.isRecording}
+                disabled={(!input.trim() && imageAttachments.length === 0) || isStreaming || isGeneratingImage || voice.isRecording}
                 className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary text-black shadow-[0_0_14px_rgba(0,208,255,0.3)] hover:shadow-[0_0_22px_rgba(0,208,255,0.5)] hover:-translate-y-px transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
               >
                 <Send size={16} className="mr-0.5 mt-0.5" />
@@ -796,15 +820,18 @@ const MessageBubble = memo(function MessageBubble({
           )}
         </div>
 
-        {/* User image attachment */}
-        {!isAI && message.imageAttachment && (
-          <div className="mb-2">
-            <img
-              src={message.imageAttachment}
-              alt="attachment"
-              className="max-w-[200px] sm:max-w-[280px] max-h-[180px] sm:max-h-[200px] object-cover rounded-xl border border-secondary/20 cursor-pointer hover:opacity-90 transition-opacity"
-              onClick={() => window.open(message.imageAttachment, "_blank")}
-            />
+        {/* User image attachments */}
+        {!isAI && message.imageAttachments && message.imageAttachments.length > 0 && (
+          <div className={cn("mb-2 flex gap-2 flex-wrap", message.imageAttachments.length > 1 ? "justify-end" : "justify-end")}>
+            {message.imageAttachments.map((att: { data: string; name: string }, idx: number) => (
+              <img
+                key={idx}
+                src={att.data}
+                alt={att.name || "attachment"}
+                className="max-w-[160px] sm:max-w-[220px] max-h-[160px] sm:max-h-[180px] object-cover rounded-xl border border-secondary/20 cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => window.open(att.data, "_blank")}
+              />
+            ))}
           </div>
         )}
 

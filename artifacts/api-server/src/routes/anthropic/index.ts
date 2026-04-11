@@ -556,44 +556,50 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
-  const { content, imageAttachment, systemAbout: guestAbout, systemRespond: guestRespond, cortexModel } = req.body as {
+  const { content, imageAttachment, imageAttachments: rawImageAttachments, systemAbout: guestAbout, systemRespond: guestRespond, cortexModel } = req.body as {
     content?: string;
     imageAttachment?: string;
+    imageAttachments?: string[];
     systemAbout?: string;
     systemRespond?: string;
     cortexModel?: string;
   };
   const useLite = cortexModel === "cortex-lite";
-  if (!content && !imageAttachment) {
+
+  // Support both single (legacy) and multiple attachments
+  const allAttachmentStrings: string[] = [];
+  if (Array.isArray(rawImageAttachments)) {
+    allAttachmentStrings.push(...rawImageAttachments.slice(0, 10));
+  } else if (typeof imageAttachment === "string") {
+    allAttachmentStrings.push(imageAttachment);
+  }
+
+  if (!content && allAttachmentStrings.length === 0) {
     res.status(400).json({ error: "Message content is required" });
     return;
   }
 
   const textContent = content ?? "";
 
-  // Validate image attachment before any DB writes
+  // Validate all image attachments before any DB writes
   const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
-  let parsedAttachment: { mediaType: AllowedMediaType; base64Data: string } | null = null;
-  if (imageAttachment != null) {
-    if (typeof imageAttachment !== "string" || !imageAttachment.startsWith("data:image/")) {
+  type ParsedAttachment = { mediaType: AllowedMediaType; base64Data: string };
+  const parsedAttachments: ParsedAttachment[] = [];
+  for (const att of allAttachmentStrings) {
+    if (typeof att !== "string" || !att.startsWith("data:image/")) {
       res.status(400).json({ error: "Invalid image attachment format" });
       return;
     }
-    if (imageAttachment.length > MAX_ATTACHMENT_BYTES * 1.4) {
-      res.status(413).json({ error: "Image attachment too large (max 5 MB)" });
+    if (att.length > MAX_ATTACHMENT_BYTES * 1.4) {
+      res.status(413).json({ error: "Image attachment too large (max 5 MB each)" });
       return;
     }
-    const matches = imageAttachment.match(
-      /^data:(image\/(jpeg|png|gif|webp));base64,(.+)$/
-    );
+    const matches = att.match(/^data:(image\/(jpeg|png|gif|webp));base64,(.+)$/);
     if (!matches) {
       res.status(400).json({ error: "Unsupported image type — use JPEG, PNG, GIF, or WEBP" });
       return;
     }
-    parsedAttachment = {
-      mediaType: matches[1] as AllowedMediaType,
-      base64Data: matches[3],
-    };
+    parsedAttachments.push({ mediaType: matches[1] as AllowedMediaType, base64Data: matches[3] });
   }
 
   try {
@@ -634,18 +640,16 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
       content: m.content,
     }));
 
-    // Compose the final user message (may include an image)
-    if (parsedAttachment) {
-      const userContent: ContentBlockParam[] = [
-        {
-          type: "image",
-          source: {
-            type: "base64",
-            media_type: parsedAttachment.mediaType,
-            data: parsedAttachment.base64Data,
-          },
-        } satisfies ImageBlockParam,
-      ];
+    // Compose the final user message (may include multiple images)
+    if (parsedAttachments.length > 0) {
+      const userContent: ContentBlockParam[] = parsedAttachments.map(att => ({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: att.mediaType,
+          data: att.base64Data,
+        },
+      } satisfies ImageBlockParam));
       if (textContent) {
         userContent.push({ type: "text", text: textContent } satisfies TextBlockParam);
       }
