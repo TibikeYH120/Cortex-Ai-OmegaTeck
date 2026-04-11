@@ -353,37 +353,37 @@ export function ChatArea() {
   return (
     <main className="flex-1 flex flex-col h-[100dvh] relative bg-black/40 backdrop-blur-[2px] overflow-hidden">
       {/* Top Bar */}
-      <header className="h-16 border-b border-border bg-black/50 backdrop-blur-md flex items-center justify-between px-4 lg:px-8 shrink-0 relative z-10">
-        <div className="flex items-center gap-4">
-          <button className="md:hidden text-muted hover:text-white transition-colors" onClick={() => setSidebarOpen(true)}>
+      <header className="h-14 sm:h-16 border-b border-border bg-black/50 backdrop-blur-md flex items-center justify-between px-3 sm:px-4 lg:px-8 shrink-0 relative z-10">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <button className="md:hidden text-muted hover:text-white transition-colors shrink-0" onClick={() => setSidebarOpen(true)}>
             <Menu size={20} />
           </button>
-          <div className="font-display font-bold text-sm tracking-wide text-white flex items-center gap-2">
+          <div className="font-display font-bold text-sm tracking-wide text-white flex items-center gap-2 min-w-0">
             {activeConversation ? (
-              <span className="truncate max-w-[200px] md:max-w-md">{activeConversation.title}</span>
+              <span className="truncate max-w-[130px] sm:max-w-[200px] md:max-w-md">{activeConversation.title}</span>
             ) : (
               <span>New <span className="text-primary">chat</span></span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#00ff88]/20 bg-[#00ff88]/5">
             <div className="w-1.5 h-1.5 rounded-full bg-[#00ff88] shadow-[0_0_8px_#00ff88] animate-pulse" />
             <span className="font-mono text-[10px] text-[#00ff88] tracking-widest font-semibold uppercase">Online</span>
           </div>
           <button
             onClick={() => { setActiveConversationId(null); setLocalMessages([]); }}
-            className="w-9 h-9 rounded-xl bg-s2 border border-border flex items-center justify-center text-muted hover:text-primary hover:border-border2 transition-all"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-s2 border border-border flex items-center justify-center text-muted hover:text-primary hover:border-border2 transition-all"
             title="New chat"
           >
-            <Plus size={18} />
+            <Plus size={16} />
           </button>
         </div>
       </header>
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto scroll-smooth relative z-0">
-        <div className="max-w-3xl mx-auto px-4 py-8 lg:py-12 flex flex-col gap-6">
+        <div className="max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-8 lg:py-12 flex flex-col gap-4 sm:gap-6">
 
           <AnimatePresence mode="wait">
             {showWelcome ? (
@@ -392,9 +392,9 @@ export function ChatArea() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="flex flex-col items-center justify-center min-h-[60vh] text-center pt-10"
+                className="flex flex-col items-center justify-center min-h-[60vh] text-center pt-4 sm:pt-10"
               >
-                <div className="relative w-[100px] h-[100px] mb-8">
+                <div className="relative w-[70px] h-[70px] sm:w-[100px] sm:h-[100px] mb-4 sm:mb-8">
                   <svg viewBox="0 0 90 90" fill="none" className="w-full h-full animate-[spin_25s_linear_infinite] drop-shadow-[0_0_24px_rgba(0,208,255,0.5)]">
                     <circle cx="45" cy="45" r="42" stroke="#00d0ff" strokeWidth="1" strokeDasharray="6 3" />
                     <circle cx="45" cy="45" r="32" stroke="#6c3bff" strokeWidth="1" strokeDasharray="4 4" />
@@ -408,10 +408,10 @@ export function ChatArea() {
                   </svg>
                 </div>
                 <div className="font-mono text-[11px] text-muted tracking-[3px] uppercase mb-4">Cortex AI — OmegaTeck</div>
-                <h1 className="text-3xl lg:text-4xl font-bold leading-tight mb-4">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight mb-3 sm:mb-4">
                   Hi, <span className="text-primary text-glow">{user?.name?.split(" ")[0] || "there"}</span>!<br />How can I help?
                 </h1>
-                <p className="text-muted text-sm lg:text-base max-w-md font-light mb-10">
+                <p className="text-muted text-sm lg:text-base max-w-md font-light mb-6 sm:mb-10">
                   Ask me anything — coding, game design, web development, creative ideas.
                 </p>
 
@@ -494,7 +494,7 @@ export function ChatArea() {
       </AnimatePresence>
 
       {/* Input Area */}
-      <div className="p-4 lg:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-border bg-black/60 backdrop-blur-xl shrink-0 z-10">
+      <div className="p-3 sm:p-4 lg:p-6 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-border bg-black/60 backdrop-blur-xl shrink-0 z-10">
         <div className="max-w-3xl mx-auto">
 
           {/* Image attachment preview */}
@@ -529,7 +529,7 @@ export function ChatArea() {
 
           <div className="relative flex items-end bg-s2 border border-border rounded-2xl overflow-hidden focus-within:border-border2 focus-within:shadow-[0_0_0_3px_rgba(0,208,255,0.05),_0_0_20px_rgba(0,208,255,0.08)] transition-all">
             {/* Left buttons: Paperclip + Mic */}
-            <div className="p-2 pl-3 flex items-center gap-1 shrink-0">
+            <div className="p-1.5 pl-2 sm:p-2 sm:pl-3 flex items-center gap-0.5 sm:gap-1 shrink-0">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -541,9 +541,9 @@ export function ChatArea() {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isStreaming || isGeneratingImage}
                 title="Attach image"
-                className="w-9 h-9 flex items-center justify-center rounded-xl text-muted hover:text-primary hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl text-muted hover:text-primary hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                <Paperclip size={18} />
+                <Paperclip size={16} />
               </button>
               <button
                 onClick={async () => {
@@ -559,13 +559,13 @@ export function ChatArea() {
                 disabled={isStreaming || isGeneratingImage}
                 title={voice.isRecording ? "Stop recording" : "Voice input"}
                 className={cn(
-                  "w-9 h-9 flex items-center justify-center rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed",
+                  "w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed",
                   voice.isRecording
                     ? "text-[#ff2e7e] bg-[#ff2e7e]/10 border border-[#ff2e7e]/30 shadow-[0_0_12px_rgba(255,46,126,0.3)] animate-pulse"
                     : "text-muted hover:text-[#ff2e7e] hover:bg-white/5"
                 )}
               >
-                {voice.isRecording ? <MicOff size={17} /> : <Mic size={17} />}
+                {voice.isRecording ? <MicOff size={16} /> : <Mic size={16} />}
               </button>
 
               {/* Voice Mode button */}
@@ -573,9 +573,9 @@ export function ChatArea() {
                 onClick={() => setVoiceModeOpen(true)}
                 disabled={isStreaming || isGeneratingImage || voice.isRecording}
                 title="Voice Mode — Live conversation"
-                className="w-9 h-9 flex items-center justify-center rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed text-muted hover:text-[#00d0ff] hover:bg-[#00d0ff]/5"
+                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed text-muted hover:text-[#00d0ff] hover:bg-[#00d0ff]/5"
               >
-                <Radio size={17} />
+                <Radio size={16} />
               </button>
             </div>
 
@@ -596,17 +596,17 @@ export function ChatArea() {
                 onKeyDown={handleKeyDown}
                 placeholder="Message Cortex AI..."
                 disabled={isStreaming}
-                className="w-full bg-transparent border-none outline-none text-foreground text-sm resize-none py-4 px-2 max-h-[180px] min-h-[56px] disabled:opacity-50"
+                className="w-full bg-transparent border-none outline-none text-foreground text-sm resize-none py-3 sm:py-4 px-2 max-h-[160px] sm:max-h-[180px] min-h-[48px] sm:min-h-[56px] disabled:opacity-50"
                 rows={1}
               />
             )}
-            <div className="p-2 shrink-0">
+            <div className="p-1.5 sm:p-2 shrink-0">
               <button
                 onClick={() => handleSend()}
                 disabled={(!input.trim() && !imageAttachment) || isStreaming || isGeneratingImage || voice.isRecording}
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary text-black shadow-[0_0_14px_rgba(0,208,255,0.3)] hover:shadow-[0_0_22px_rgba(0,208,255,0.5)] hover:-translate-y-px transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+                className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary text-black shadow-[0_0_14px_rgba(0,208,255,0.3)] hover:shadow-[0_0_22px_rgba(0,208,255,0.5)] hover:-translate-y-px transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
               >
-                <Send size={18} className="mr-0.5 mt-0.5" />
+                <Send size={16} className="mr-0.5 mt-0.5" />
               </button>
             </div>
           </div>
@@ -722,23 +722,23 @@ const MessageBubble = memo(function MessageBubble({
     <motion.div
       initial={skipEntryAnimation ? false : { opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={cn("flex gap-4 group", !isAI && "flex-row-reverse")}
+      className={cn("flex gap-2.5 sm:gap-4 group", !isAI && "flex-row-reverse")}
     >
       {/* Avatar */}
       <div className="mt-1 shrink-0">
         {isAI ? (
-          <CortexAvatar size={36} />
+          <CortexAvatar size={30} />
         ) : (
           <UserAvatar
             name={user?.name || "User"}
             email={user?.email}
-            size={36}
+            size={30}
           />
         )}
       </div>
 
       {/* Content */}
-      <div className={cn("max-w-[calc(100%-3.5rem)] flex flex-col", !isAI && "items-end")}>
+      <div className={cn("max-w-[calc(100%-2.75rem)] sm:max-w-[calc(100%-3.5rem)] flex flex-col", !isAI && "items-end")}>
         <div className={cn("flex items-center gap-2 mb-1.5", !isAI && "flex-row-reverse")}>
           <span className={cn("text-xs font-mono font-semibold", isAI ? "text-primary" : "text-secondary")}>
             {isAI ? "Cortex AI" : (user?.name || "You")}
@@ -802,14 +802,14 @@ const MessageBubble = memo(function MessageBubble({
             <img
               src={message.imageAttachment}
               alt="attachment"
-              className="max-w-[280px] max-h-[200px] object-cover rounded-xl border border-secondary/20 cursor-pointer hover:opacity-90 transition-opacity"
+              className="max-w-[200px] sm:max-w-[280px] max-h-[180px] sm:max-h-[200px] object-cover rounded-xl border border-secondary/20 cursor-pointer hover:opacity-90 transition-opacity"
               onClick={() => window.open(message.imageAttachment, "_blank")}
             />
           </div>
         )}
 
         <div className={cn(
-          "px-5 py-4 text-sm leading-relaxed relative",
+          "px-3 py-2.5 sm:px-5 sm:py-4 text-sm leading-relaxed relative",
           isAI
             ? "bg-s2 border border-border rounded-2xl rounded-tl-sm text-foreground min-w-[60px]"
             : "bg-gradient-to-br from-primary/5 to-secondary/5 border border-secondary/20 rounded-2xl rounded-tr-sm text-right"
