@@ -407,15 +407,15 @@ export function ChatArea() {
                     <line x1="77" y1="45" x2="87" y2="45" stroke="#00d0ff" strokeWidth="1.5" strokeLinecap="round" />
                   </svg>
                 </div>
-                <div className="font-mono text-[11px] text-muted tracking-[3px] uppercase mb-4">Cortex AI — OmegaTeck</div>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight mb-3 sm:mb-4">
+                <div className="font-mono text-[11px] text-muted tracking-[3px] uppercase mb-2 sm:mb-4">Cortex AI — OmegaTeck</div>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight mb-2 sm:mb-4">
                   Hi, <span className="text-primary text-glow">{user?.name?.split(" ")[0] || "there"}</span>!<br />How can I help?
                 </h1>
-                <p className="text-muted text-sm lg:text-base max-w-md font-light mb-6 sm:mb-10">
+                <p className="text-muted text-sm lg:text-base max-w-md font-light mb-4 sm:mb-10">
                   Ask me anything — coding, game design, web development, creative ideas.
                 </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3 w-full max-w-lg">
                   {suggestionCards.map((card, i) => (
                     <motion.button
                       key={i}
@@ -423,11 +423,11 @@ export function ChatArea() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.07 }}
                       onClick={() => { setInput(card.prompt); textareaRef.current?.focus(); }}
-                      className="flex flex-col text-left p-4 rounded-xl bg-s2 border border-border hover:border-border2 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/50 transition-all group"
+                      className="flex flex-col text-left p-3 sm:p-4 rounded-xl bg-s2 border border-border hover:border-border2 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/50 transition-all group"
                     >
-                      <span className="text-xl mb-2 grayscale group-hover:grayscale-0 transition-all">{card.icon}</span>
-                      <span className="text-sm font-semibold text-white mb-1">{card.title}</span>
-                      <span className="text-[11px] text-muted font-light">{card.sub}</span>
+                      <span className="text-lg sm:text-xl mb-1 sm:mb-2 grayscale group-hover:grayscale-0 transition-all">{card.icon}</span>
+                      <span className="text-xs sm:text-sm font-semibold text-white mb-0.5 sm:mb-1">{card.title}</span>
+                      <span className="text-[10px] sm:text-[11px] text-muted font-light">{card.sub}</span>
                     </motion.button>
                   ))}
                 </div>
