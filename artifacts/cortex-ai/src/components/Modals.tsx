@@ -437,8 +437,8 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
 
   useEffect(() => {
     if (profileForInstructions) {
-      const about = (profileForInstructions as any).systemAbout ?? "";
-      const respond = (profileForInstructions as any).systemRespond ?? "";
+      const about = profileForInstructions.systemAbout ?? "";
+      const respond = profileForInstructions.systemRespond ?? "";
       setSysAbout(about);
       setSysRespond(respond);
       try {
@@ -454,7 +454,7 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
     if (!isGuest) {
       setIsSavingInstructions(true);
       try {
-        await updateMutation.mutateAsync({ data: { systemAbout: sysAbout, systemRespond: sysRespond } as any });
+        await updateMutation.mutateAsync({ data: { systemAbout: sysAbout, systemRespond: sysRespond } });
         queryClient.invalidateQueries({ queryKey: getGetProfileQueryKey() });
       } finally {
         setIsSavingInstructions(false);

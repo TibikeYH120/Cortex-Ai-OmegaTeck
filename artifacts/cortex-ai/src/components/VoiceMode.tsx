@@ -316,7 +316,7 @@ export function VoiceMode({ onClose }: VoiceModeProps) {
   const ensureConv = useCallback(async (): Promise<number> => {
     if (convId) return convId;
     const res = await createConv.mutateAsync({ data: { title: "Voice Conversation" } });
-    const id  = (res as any).id as number;
+    const id  = res.id;
     setConvId(id);
     setActiveConversationId(id);
     return id;

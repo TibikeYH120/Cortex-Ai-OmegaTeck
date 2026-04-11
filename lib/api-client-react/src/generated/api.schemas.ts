@@ -42,12 +42,16 @@ export interface UserProfile {
   email: string;
   role: string;
   bio?: string | null;
+  systemAbout?: string | null;
+  systemRespond?: string | null;
   createdAt: string;
 }
 
 export interface UpdateProfileBody {
   name?: string;
   bio?: string;
+  systemAbout?: string;
+  systemRespond?: string;
 }
 
 export interface AnthropicConversation {

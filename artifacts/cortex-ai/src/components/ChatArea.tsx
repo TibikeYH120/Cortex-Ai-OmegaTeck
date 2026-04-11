@@ -163,7 +163,7 @@ export function ChatArea() {
         // 2. Re-inject local assistant image messages (type:"image") that have no DB counterpart.
         // These are ephemeral generated images — not persisted — but should survive within-session syncs.
         const ephemeralImages = prev.filter(m =>
-          !usedLocalIds.has(m.id) && m.role === "assistant" && (m as any).type === "image"
+          !usedLocalIds.has(m.id) && m.role === "assistant" && m.type === "image"
         );
         if (ephemeralImages.length === 0) return merged;
 
