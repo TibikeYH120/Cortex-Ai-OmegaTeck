@@ -7,10 +7,11 @@ import {
   useLogoutUser
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { MessageSquarePlus, MessageSquare, Trash2, LogOut, Settings, User, ChevronLeft } from "lucide-react";
+import { MessageSquarePlus, MessageSquare, Trash2, LogOut, Settings, User, ChevronLeft, Zap } from "lucide-react";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import { ProfileModal, SettingsModal } from "./Modals";
 import { UserAvatar } from "./AvatarUtils";
+import { Link } from "wouter";
 
 export function Sidebar() {
   const { isGuest, user, activeConversationId, setActiveConversationId, sidebarOpen, setSidebarOpen, setGuestMode } = useAppState();
@@ -156,6 +157,22 @@ export function Sidebar() {
               </button>
             </div>
           )}
+        </div>
+
+        {/* Cortex Plus upsell */}
+        <div className="px-3 pb-2 shrink-0">
+          <Link href="/pricing">
+            <a className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl bg-gradient-to-r from-primary/8 to-secondary/8 border border-primary/20 hover:border-primary/40 hover:from-primary/12 hover:to-secondary/12 transition-all group">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(0,208,255,0.3)]">
+                <Zap size={13} className="text-black" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-display font-bold text-white leading-tight">CORTEX Plus</div>
+                <div className="text-[10px] font-mono text-primary/70 leading-tight">€12.99/hó · Teljes hozzáférés</div>
+              </div>
+              <div className="text-[9px] font-mono text-primary/50 group-hover:text-primary/80 transition-colors tracking-widest uppercase">→</div>
+            </a>
+          </Link>
         </div>
 
         {/* User Footer */}
