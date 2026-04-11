@@ -456,12 +456,17 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
       try {
         await updateMutation.mutateAsync({ data: { systemAbout: sysAbout, systemRespond: sysRespond } });
         queryClient.invalidateQueries({ queryKey: getGetProfileQueryKey() });
+        setSavedInstructions(true);
+        setTimeout(() => setSavedInstructions(false), 2000);
+      } catch {
+        /* DB save failed — do not show success state */
       } finally {
         setIsSavingInstructions(false);
       }
+    } else {
+      setSavedInstructions(true);
+      setTimeout(() => setSavedInstructions(false), 2000);
     }
-    setSavedInstructions(true);
-    setTimeout(() => setSavedInstructions(false), 2000);
   };
 
   const [selectedVoice, setSelectedVoice] = useState<VoiceId>(() => {
