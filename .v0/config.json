@@ -1,0 +1,6 @@
+{
+  "rootPath": "artifacts/cortex-ai",
+  "devCommand": "pnpm dev",
+  "buildCommand": "pnpm build",
+  "installCommand": "pnpm install"
+}

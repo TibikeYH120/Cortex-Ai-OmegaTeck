@@ -1,0 +1,9 @@
+{
+  "buildCommand": "pnpm --filter @workspace/cortex-ai build",
+  "outputDirectory": "artifacts/cortex-ai/dist/public",
+  "installCommand": "pnpm install",
+  "framework": null,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
