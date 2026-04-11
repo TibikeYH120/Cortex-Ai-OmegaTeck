@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, memo, useCallback, useMemo } from "react";
 import { useAppState } from "@/hooks/use-app-state";
-import { useCreateAnthropicConversation, useGetAnthropicConversation } from "@workspace/api-client-react";
 import { useChatStream, type WebSearchSource } from "@/hooks/use-chat-stream";
 import { useVoice } from "@/hooks/use-voice";
 import { MarkdownRenderer } from "./MarkdownRenderer";

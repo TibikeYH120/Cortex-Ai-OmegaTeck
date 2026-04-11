@@ -4,9 +4,7 @@ import {
   Eye, EyeOff, CheckCircle2, AlertCircle, MessageSquare, Zap, Shield,
   Info, Globe, Volume2, Palette, Key, Mic, Play, Square, Loader2, BookOpen
 } from "lucide-react";
-import { useGetProfile, useUpdateProfile, getGetProfileQueryKey, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useAppState } from "@/hooks/use-app-state";
-import { useQueryClient } from "@tanstack/react-query";
 import { UserAvatar, CortexAvatar } from "./AvatarUtils";
 import { VOICE_OPTIONS, VOICE_SETTINGS_EVENT, type VoiceId } from "@/hooks/use-voice";
 
@@ -36,41 +34,23 @@ function StatCard({ icon, label, value, color = "#00d0ff" }: { icon: React.React
 }
 
 export function ProfileModal({ open, onOpenChange }: ModalProps) {
-  const { isGuest, user } = useAppState();
-  const { data: profile, isLoading } = useGetProfile({ query: { enabled: open && !isGuest } });
-  const updateMutation = useUpdateProfile();
-  const queryClient = useQueryClient();
+  const { user } = useAppState();
+  const isGuest = true; // Demo mode
+  const isLoading = false;
+  const profile = { name: user?.name || "Demo User", bio: "", createdAt: new Date().toISOString(), id: 0 };
 
   const [tab, setTab] = useState<"profile" | "password" | "stats">("profile");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(user?.name || "");
   const [bio, setBio] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
-  const [stats, setStats] = useState<{ conversationCount: number; messageCount: number; memberSince: string } | null>(null);
+  const [stats] = useState<{ conversationCount: number; messageCount: number; memberSince: string } | null>({ conversationCount: 0, messageCount: 0, memberSince: new Date().toISOString() });
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
-  useEffect(() => {
-    if (profile) {
-      setName(profile.name || "");
-      setBio(profile.bio || "");
-    } else if (user && !isGuest) {
-      setName(user.name || "");
-    }
-  }, [profile, user, isGuest]);
-
-  useEffect(() => {
-    if (open && !isGuest && tab === "stats") {
-      fetch("/api/profile/stats", { credentials: "include" })
-        .then(r => r.json())
-        .then(setStats)
-        .catch(() => {});
-    }
-  }, [open, tab, isGuest]);
 
   useEffect(() => {
     if (!open) {
@@ -84,46 +64,14 @@ export function ProfileModal({ open, onOpenChange }: ModalProps) {
   }, [open]);
 
   const handleSaveProfile = async () => {
-    if (isGuest) { onOpenChange(false); return; }
-    setError(""); setSuccess("");
-    try {
-      await updateMutation.mutateAsync({ data: { name, bio } });
-      queryClient.invalidateQueries({ queryKey: getGetProfileQueryKey() });
-      queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
-      setSaved(true);
-      setSuccess("Profile updated successfully!");
-      setTimeout(() => { setSaved(false); setSuccess(""); onOpenChange(false); }, 1500);
-    } catch (err: any) {
-      setError(err?.message || "Error saving profile.");
-    }
+    onOpenChange(false);
   };
 
   const handleChangePassword = async () => {
-    setError(""); setSuccess("");
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setError("Please fill in all password fields!"); return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError("New passwords do not match!"); return;
-    }
-    if (newPassword.length < 6) {
-      setError("New password must be at least 6 characters."); return;
-    }
-    try {
-      const res = await fetch("/api/profile/change-password", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "Error changing password."); return; }
-      setSuccess("Password changed successfully!");
-      setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
-    } catch {
-      setError("Network error.");
-    }
+    setError("Profile editing not available in demo mode.");
   };
+
+  const updateMutation = { isPending: false };
 
   if (!open) return null;
 

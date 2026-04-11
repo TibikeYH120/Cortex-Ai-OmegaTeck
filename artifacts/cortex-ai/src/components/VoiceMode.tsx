@@ -3,7 +3,6 @@ import { createPortal } from "react-dom";
 import { X, Mic, MicOff, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppState } from "@/hooks/use-app-state";
-import { useCreateAnthropicConversation } from "@workspace/api-client-react";
 import { VOICE_STORAGE_KEY, VOICE_OPTIONS, type VoiceId } from "@/hooks/use-voice";
 
 type VoiceState = "idle" | "listening" | "thinking" | "speaking";
@@ -181,7 +180,6 @@ interface VoiceModeProps { onClose: () => void }
 
 export function VoiceMode({ onClose }: VoiceModeProps) {
   const { activeConversationId, setActiveConversationId } = useAppState();
-  const createConv = useCreateAnthropicConversation();
 
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [transcript,  setTranscript]  = useState("");
@@ -314,12 +312,11 @@ export function VoiceMode({ onClose }: VoiceModeProps) {
   /* ── Ensure conversation ── */
   const ensureConv = useCallback(async (): Promise<number> => {
     if (convId) return convId;
-    const res = await createConv.mutateAsync({ data: { title: "Voice Conversation" } });
-    const id  = res.id;
+    const id = Date.now();
     setConvId(id);
     setActiveConversationId(id);
     return id;
-  }, [convId, createConv, setActiveConversationId]);
+  }, [convId, setActiveConversationId]);
 
   /* ── TTS ── */
   const stopAudio = useCallback(() => {

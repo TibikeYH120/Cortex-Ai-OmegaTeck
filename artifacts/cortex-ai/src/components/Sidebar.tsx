@@ -1,54 +1,31 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useAppState } from "@/hooks/use-app-state";
-import {
-  useListAnthropicConversations,
-  useDeleteAnthropicConversation,
-  useLogoutUser
-} from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
 import { MessageSquarePlus, MessageSquare, Trash2, LogOut, Settings, User, ChevronLeft } from "lucide-react";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import { ProfileModal, SettingsModal } from "./Modals";
 import { UserAvatar } from "./AvatarUtils";
 
+// Demo conversations for standalone mode
+const DEMO_CONVERSATIONS = [
+  { id: 1, title: "Welcome to CORTEX AI", createdAt: new Date().toISOString() },
+];
+
 export function Sidebar() {
   const { isGuest, user, activeConversationId, setActiveConversationId, sidebarOpen, setSidebarOpen, setGuestMode } = useAppState();
-  const queryClient = useQueryClient();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
-
-  const { data: conversations = [] } = useListAnthropicConversations();
-
-  const deleteMutation = useDeleteAnthropicConversation({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["/api/anthropic/conversations"] });
-      }
-    }
-  });
-
-  const logoutMutation = useLogoutUser({
-    mutation: {
-      onSuccess: () => {
-        queryClient.clear();
-        if (isGuest) setGuestMode(false);
-        window.location.reload();
-      }
-    }
-  });
+  const [conversations, setConversations] = useState(DEMO_CONVERSATIONS);
 
   const handleLogout = () => {
-    // Both guests and logged-in users call the backend logout endpoint so the
-    // server session is destroyed. For guests this clears their session-scoped
-    // conversation history; for members it ends the auth session.
-    logoutMutation.mutate();
+    setGuestMode(false);
+    window.location.reload();
   };
 
   const handleDelete = (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
     if (confirm("Are you sure you want to delete this conversation?")) {
-      deleteMutation.mutate({ id });
+      setConversations(prev => prev.filter(c => c.id !== id));
       if (activeConversationId === id) setActiveConversationId(null);
     }
   };
@@ -144,18 +121,11 @@ export function Sidebar() {
             </div>
           )}
 
-          {/* Guest: show a sign-in nudge below the conversation list */}
-          {isGuest && (
-            <div className="mx-1 mt-3 p-3 bg-white/2 rounded-lg border border-white/4 text-center">
-              <div className="text-[11px] text-muted/70 mb-2">Sign in to save your history permanently.</div>
-              <button
-                onClick={() => { setGuestMode(false); window.location.reload(); }}
-                className="text-[10px] font-mono text-primary/80 hover:text-primary border border-primary/20 hover:border-primary/50 px-3 py-1 rounded-lg transition-all"
-              >
-                Sign in
-              </button>
-            </div>
-          )}
+          {/* Demo mode notice */}
+          <div className="mx-1 mt-3 p-3 bg-white/2 rounded-lg border border-white/4 text-center">
+            <div className="text-[11px] text-muted/70 mb-2">Demo Mode - Conversations are not saved</div>
+            <span className="text-[10px] font-mono text-primary/60">Deploy with backend for full features</span>
+          </div>
         </div>
 
         {/* User Footer */}
@@ -170,7 +140,7 @@ export function Sidebar() {
               />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold truncate text-white">{user?.name}</div>
-                <div className="text-[10px] font-mono text-muted/60">{user?.role === "guest" ? "Guest" : "OmegaTeck Member"}</div>
+                <div className="text-[10px] font-mono text-muted/60">Demo User</div>
               </div>
             </div>
 

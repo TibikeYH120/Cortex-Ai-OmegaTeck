@@ -1,7 +1,5 @@
 import { useState } from "react";
-import { useLoginUser, useRegisterUser } from "@workspace/api-client-react";
 import { useAppState } from "@/hooks/use-app-state";
-import { useQueryClient } from "@tanstack/react-query";
 import { Eye, EyeOff, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -15,37 +13,11 @@ export function AuthScreen() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
 
-  const loginMutation = useLoginUser();
-  const registerMutation = useRegisterUser();
   const { setGuestMode } = useAppState();
-  const queryClient = useQueryClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg("");
-
-    if (!email || !password || (tab === "register" && !name)) {
-      setErrorMsg("Please fill in all fields!");
-      return;
-    }
-
-    try {
-      if (tab === "login") {
-        await loginMutation.mutateAsync({ data: { email, password } });
-      } else {
-        if (password.length < 6) {
-          setErrorMsg("Password must be at least 6 characters!");
-          return;
-        }
-        await registerMutation.mutateAsync({ data: { name, email, password } });
-      }
-      
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      window.location.reload();
-
-    } catch (err: any) {
-      setErrorMsg(err.message || "Invalid credentials or network error.");
-    }
+    setErrorMsg("Authentication not available in demo mode. Please continue as guest.");
   };
 
   const handleGuest = () => {
@@ -78,107 +50,32 @@ export function AuthScreen() {
         </div>
 
         <div className="text-center mb-8">
-          <h2 className="text-xl font-bold text-white mb-1">Welcome back</h2>
-          <p className="text-sm text-muted">Sign in to your account to continue</p>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex p-1 bg-s3 border border-border rounded-xl mb-6">
-          <button 
-            type="button"
-            onClick={() => { setTab("login"); setErrorMsg(""); }}
-            className={cn(
-              "flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all",
-              tab === "login" ? "bg-s2 text-white shadow-sm border border-border" : "text-muted hover:text-white/80"
-            )}
-          >
-            Sign In
-          </button>
-          <button 
-            type="button"
-            onClick={() => { setTab("register"); setErrorMsg(""); }}
-            className={cn(
-              "flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all",
-              tab === "register" ? "bg-s2 text-white shadow-sm border border-border" : "text-muted hover:text-white/80"
-            )}
-          >
-            Register
-          </button>
+          <h2 className="text-xl font-bold text-white mb-1">Welcome</h2>
+          <p className="text-sm text-muted">Demo mode - Continue as guest to try CORTEX AI</p>
         </div>
 
         {errorMsg && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mb-6">
-            <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-xl text-destructive text-sm font-medium">
+            <div className="flex items-center gap-2 p-3 bg-primary/10 border border-primary/30 rounded-xl text-primary text-sm font-medium">
               <AlertCircle size={16} className="shrink-0" />
               <span>{errorMsg}</span>
             </div>
           </motion.div>
         )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {tab === "register" && (
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-mono text-muted uppercase ml-1">Username</label>
-              <input 
-                type="text" value={name} onChange={e => setName(e.target.value)}
-                placeholder="e.g. Alex"
-                className="w-full bg-s3 border border-border rounded-xl px-4 py-3.5 text-sm text-white placeholder:text-muted/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
-              />
-            </div>
-          )}
-
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-mono text-muted uppercase ml-1">Email address</label>
-            <input 
-              type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="e.g. alex@omegateck.hu"
-              autoComplete="email"
-              className="w-full bg-s3 border border-border rounded-xl px-4 py-3.5 text-sm text-white placeholder:text-muted/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
-            />
-          </div>
-
-          <div className="space-y-1.5 relative">
-            <label className="text-[11px] font-mono text-muted uppercase ml-1">Password</label>
-            <div className="relative">
-              <input 
-                type={showPass ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)}
-                placeholder={tab === "register" ? "Minimum 6 characters" : "••••••••"}
-                autoComplete={tab === "register" ? "new-password" : "current-password"}
-                className="w-full bg-s3 border border-border rounded-xl px-4 py-3.5 text-sm text-white placeholder:text-muted/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all pr-12"
-              />
-              <button 
-                type="button" 
-                onClick={() => setShowPass(!showPass)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-white transition-colors"
-              >
-                {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </div>
-
-          <button 
-            type="submit"
-            disabled={loginMutation.isPending || registerMutation.isPending}
-            className="w-full py-3.5 mt-2 rounded-xl text-sm font-bold bg-gradient-to-r from-primary to-secondary text-black shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loginMutation.isPending || registerMutation.isPending ? "Please wait..." : (tab === "login" ? "SIGN IN" : "CREATE ACCOUNT")}
-          </button>
-        </form>
-
-        <div className="flex items-center gap-4 my-6">
-          <div className="h-px flex-1 bg-border" />
-          <span className="text-[11px] font-mono text-muted uppercase">or</span>
-          <div className="h-px flex-1 bg-border" />
-        </div>
-
         <button 
           type="button"
           onClick={handleGuest}
-          className="w-full py-3.5 rounded-xl text-sm font-semibold bg-s3 border border-border text-foreground hover:bg-s2 hover:border-border2 hover:text-primary transition-all group"
+          className="w-full py-3.5 rounded-xl text-sm font-bold bg-gradient-to-r from-primary to-secondary text-black shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-0.5 transition-all"
         >
-          Continue <span className="text-muted group-hover:text-primary transition-colors">as guest</span>
+          CONTINUE AS GUEST
         </button>
+
+        <div className="mt-6 p-4 rounded-xl bg-white/2 border border-white/5 text-center">
+          <p className="text-xs text-muted/60">
+            This is a demo version of CORTEX AI. Deploy with your own backend for full authentication features.
+          </p>
+        </div>
       </motion.div>
     </div>
   );

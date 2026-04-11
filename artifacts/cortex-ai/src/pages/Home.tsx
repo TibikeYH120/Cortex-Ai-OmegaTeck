@@ -1,27 +1,8 @@
-import { useAppState } from "@/hooks/use-app-state";
-import { AuthScreen } from "@/components/AuthScreen";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatArea } from "@/components/ChatArea";
-import { Loader2 } from "lucide-react";
 
 export function Home() {
-  const { isGuest, user, isAuthLoading } = useAppState();
-
-  if (isAuthLoading) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-primary">
-        <Loader2 className="w-12 h-12 animate-spin mb-4" />
-        <div className="font-mono text-xs tracking-widest uppercase">Cortex Core Loading...</div>
-      </div>
-    );
-  }
-
-  // If not guest and no user data, show login
-  if (!isGuest && !user) {
-    return <AuthScreen />;
-  }
-
-  // Main App Layout
+  // Main App Layout - Demo mode, always show main UI
   return (
     <div className="flex h-[100dvh] w-full bg-background overflow-hidden relative">
       {/* Global Background Blobs for depth */}
