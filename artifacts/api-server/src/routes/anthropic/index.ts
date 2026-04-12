@@ -681,7 +681,7 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
       fullResponse = await runOpenAIStreaming(openAIMsgs, liteSystemPrompt, res);
       usedSearch = false;
       sources = [];
-    } else if (parsedAttachment) {
+    } else if (parsedAttachments.length > 0) {
       // ── CORTEX standard: Claude with image — skip tool-use path ───────────
       const stream = anthropic.messages.stream({
         model: "claude-sonnet-4-6",
