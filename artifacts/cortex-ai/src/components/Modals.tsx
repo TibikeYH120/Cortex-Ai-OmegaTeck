@@ -925,7 +925,7 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
                     { k: "Developer", v: "OmegaTeck Technology" },
                     { k: "Founder", v: "Tibor" },
                     { k: "AI Engine", v: "CORTEX AI Engine" },
-                    { k: "Projects", v: "OmegaHumanity, VoidExio" },
+                    { k: "Projects", v: "OmegaHumanity" },
                   ].map(({ k, v }, i) => (
                     <div key={i} className="flex justify-between">
                       <span className="text-muted/40">{k}</span>
