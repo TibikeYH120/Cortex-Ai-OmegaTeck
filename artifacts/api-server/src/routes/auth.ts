@@ -29,11 +29,15 @@ router.post("/register", async (req: Request, res: Response) => {
       return;
     }
     const passwordHash = await bcrypt.hash(password, 10);
+    const CORTEX_PLUS_NAMES = ["balázs", "tibikeYH120", "tibikeYH120•"];
+    const normalizedName = name.trim().toLowerCase();
+    const isPlus = CORTEX_PLUS_NAMES.some(n => n.toLowerCase() === normalizedName);
+    const assignedRole = isPlus ? "cortex_plus" : "member";
     const [user] = await db.insert(usersTable).values({
       name,
       email,
       passwordHash,
-      role: "member",
+      role: assignedRole,
     }).returning();
     req.session.userId = user.id;
     res.status(201).json({

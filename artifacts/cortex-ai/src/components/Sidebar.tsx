@@ -187,7 +187,7 @@ export function Sidebar() {
               />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold truncate text-white">{user?.name}</div>
-                <div className="text-[10px] font-mono text-muted/60">{user?.role === "guest" ? "Guest" : "OmegaTeck Member"}</div>
+                <div className="text-[10px] font-mono text-muted/60">{user?.role === "guest" ? "Guest" : user?.role === "cortex_plus" ? "✦ Cortex Plus" : "OmegaTeck Member"}</div>
               </div>
             </div>
 

@@ -170,8 +170,8 @@ export function ProfileModal({ open, onOpenChange }: ModalProps) {
               <div className="text-lg font-bold text-white truncate">{user?.name || "Guest"}</div>
               <div className="text-sm text-muted/60 font-mono truncate">{user?.email}</div>
               <div className="mt-1.5 flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider font-semibold" style={{ background: "rgba(0,208,255,0.08)", border: "1px solid rgba(0,208,255,0.2)", color: "#00d0ff" }}>
-                  {user?.role === "guest" ? "Guest" : "OmegaTeck Member"}
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider font-semibold" style={user?.role === "cortex_plus" ? { background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.35)", color: "#c084fc" } : { background: "rgba(0,208,255,0.08)", border: "1px solid rgba(0,208,255,0.2)", color: "#00d0ff" }}>
+                  {user?.role === "guest" ? "Guest" : user?.role === "cortex_plus" ? "✦ Cortex Plus" : "OmegaTeck Member"}
                 </span>
                 {!isGuest && <span className="text-[10px] text-muted/40 font-mono">Joined: {joinDate}</span>}
               </div>
@@ -308,7 +308,7 @@ export function ProfileModal({ open, onOpenChange }: ModalProps) {
                       <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-3">Account details</div>
                       {[
                         { label: "Member since", value: joinDate },
-                        { label: "Account type", value: user?.role === "guest" ? "Guest" : "OmegaTeck Member" },
+                        { label: "Account type", value: user?.role === "guest" ? "Guest" : user?.role === "cortex_plus" ? "✦ Cortex Plus" : "OmegaTeck Member" },
                         { label: "User ID", value: `#${profile?.id}` },
                         { label: "Email", value: user?.email || "-" },
                       ].map((item, i) => (
