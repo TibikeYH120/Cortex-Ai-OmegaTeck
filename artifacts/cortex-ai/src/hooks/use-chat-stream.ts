@@ -111,6 +111,10 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
         signal: abortControllerRef.current.signal,
       });
 
+      if (response.status === 429) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || "Elérted a napi üzenetkorlátot. Próbáld újra holnap, vagy válts Cortex Plus-ra!");
+      }
       if (!response.ok) throw new Error("Network error while sending message.");
       if (!response.body) throw new Error("Empty response from server.");
 

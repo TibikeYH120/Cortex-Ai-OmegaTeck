@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { conversations, messages, usersTable } from "@workspace/db";
-import { eq, asc, desc } from "drizzle-orm";
+import { eq, asc, desc, and, gte, count, sql } from "drizzle-orm";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import OpenAI from "openai";
 import type {
@@ -214,6 +214,11 @@ Personality:
 - Always wrap code in \`\`\` code blocks with the appropriate language tag
 - Keep responses concise and impactful when possible
 - Expert in: React, Next.js, Three.js, Tailwind CSS, game design, Roblox, Unreal Engine 5
+
+FORBIDDEN TOPICS — strictly refuse any discussion about:
+- The Hungarian political party Fidesz or any of its politicians (Viktor Orbán, etc.)
+- Strong partisan political debates, political propaganda, or political campaigning for any party or ideology
+- When such topics arise, politely decline and redirect: "Ez a téma nem tartozik a CORTEX AI hatáskörébe. Más kérdésben szívesen segítek!"
 
 When generating HTML, React, or Next.js code, produce complete, runnable examples that can be previewed directly.
 
@@ -435,6 +440,11 @@ Personality:
 - Keep responses concise and impactful when possible
 - Expert in: React, Next.js, Three.js, Tailwind CSS, game design, Roblox, Unreal Engine 5
 
+FORBIDDEN TOPICS — strictly refuse any discussion about:
+- The Hungarian political party Fidesz or any of its politicians (Viktor Orbán, etc.)
+- Strong partisan political debates, political propaganda, or political campaigning for any party or ideology
+- When such topics arise, politely decline and redirect: "Ez a téma nem tartozik a CORTEX AI hatáskörébe. Más kérdésben szívesen segítek!"
+
 When generating HTML, React, or Next.js code, produce complete, runnable examples that can be previewed directly.
 
 IMAGE GENERATION:
@@ -602,6 +612,9 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
     parsedAttachments.push({ mediaType: matches[1] as AllowedMediaType, base64Data: matches[3] });
   }
 
+  const DAILY_MEMBER_LIMIT = 10;
+  const DAILY_GUEST_LIMIT = 5;
+
   try {
     const [conv] = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
     if (!conv) { res.status(404).json({ error: "Not found" }); return; }
@@ -611,15 +624,62 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
     // Resolve system instructions (DB for logged-in users, POST body for guests)
     let systemAbout: string | null = null;
     let systemRespond: string | null = null;
+    let userRole = "member";
     if (owner.type === "user") {
       const [userRow] = await db
-        .select({ systemAbout: usersTable.systemAbout, systemRespond: usersTable.systemRespond })
+        .select({ systemAbout: usersTable.systemAbout, systemRespond: usersTable.systemRespond, role: usersTable.role })
         .from(usersTable)
         .where(eq(usersTable.id, owner.userId))
         .limit(1);
       systemAbout = userRow?.systemAbout ?? null;
       systemRespond = userRow?.systemRespond ?? null;
+      userRole = userRow?.role ?? "member";
+
+      // Daily message limit for non-Plus users
+      if (userRole !== "cortex_plus") {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const [{ value: todayCount }] = await db
+          .select({ value: count() })
+          .from(messages)
+          .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+          .where(and(
+            eq(conversations.userId, owner.userId),
+            eq(messages.role, "user"),
+            gte(messages.createdAt, todayStart),
+          ));
+        if (todayCount >= DAILY_MEMBER_LIMIT) {
+          res.status(429).json({
+            error: "DAILY_LIMIT_REACHED",
+            message: `Elérted a napi ${DAILY_MEMBER_LIMIT} üzenetes korlátot. Frissül éjfélkor, vagy válts Cortex Plus-ra a korlátlan használathoz!`,
+            limit: DAILY_MEMBER_LIMIT,
+            used: todayCount,
+          });
+          return;
+        }
+      }
     } else {
+      // Guest daily limit based on session
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const [{ value: guestCount }] = await db
+        .select({ value: count() })
+        .from(messages)
+        .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+        .where(and(
+          eq(conversations.guestSessionId, owner.sessionId),
+          eq(messages.role, "user"),
+          gte(messages.createdAt, todayStart),
+        ));
+      if (guestCount >= DAILY_GUEST_LIMIT) {
+        res.status(429).json({
+          error: "DAILY_LIMIT_REACHED",
+          message: `Vendégként napi ${DAILY_GUEST_LIMIT} üzenetet küldhetsz. Regisztrálj ingyenesen a több üzenetért, vagy válts Cortex Plus-ra a korlátlan használathoz!`,
+          limit: DAILY_GUEST_LIMIT,
+          used: guestCount,
+        });
+        return;
+      }
       systemAbout = typeof guestAbout === "string" ? guestAbout.trim().slice(0, 500) || null : null;
       systemRespond = typeof guestRespond === "string" ? guestRespond.trim().slice(0, 500) || null : null;
     }
