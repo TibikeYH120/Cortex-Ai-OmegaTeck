@@ -1099,7 +1099,7 @@ export function SubscriptionModal({ open, onOpenChange }: ModalProps) {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.055, duration: 0.22 }}
-                            whileHover={{ scale: 1.03, borderColor: "rgba(249,115,22,0.45)" }}
+                            whileHover={{ scale: 1.03 }}
                             className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold text-white/80 cursor-default"
                             style={{ background: "rgba(249,115,22,0.07)", border: "1px solid rgba(249,115,22,0.18)" }}
                           >
@@ -1120,11 +1120,11 @@ export function SubscriptionModal({ open, onOpenChange }: ModalProps) {
                           whileTap={{ scale: 0.97 }}
                           onClick={() => setBilling("monthly")}
                           className="flex-1 flex flex-col p-4 rounded-xl text-left"
-                          animate={billing === "monthly"
-                            ? { background: "rgba(249,115,22,0.10)", borderColor: "rgba(249,115,22,0.55)" }
-                            : { background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}
-                          style={{ border: "1.5px solid" }}
-                          transition={{ duration: 0.18 }}
+                          style={{
+                            background: billing === "monthly" ? "rgba(249,115,22,0.10)" : "rgba(255,255,255,0.03)",
+                            border: billing === "monthly" ? "1.5px solid rgba(249,115,22,0.55)" : "1.5px solid rgba(255,255,255,0.08)",
+                            transition: "background 0.18s ease, border-color 0.18s ease",
+                          }}
                         >
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-[10px] font-mono text-muted/60 uppercase tracking-wider">Havi</span>
@@ -1153,11 +1153,11 @@ export function SubscriptionModal({ open, onOpenChange }: ModalProps) {
                           whileTap={{ scale: 0.97 }}
                           onClick={() => setBilling("yearly")}
                           className="flex-1 flex flex-col p-4 rounded-xl text-left relative overflow-visible"
-                          animate={billing === "yearly"
-                            ? { background: "rgba(249,115,22,0.13)", borderColor: "rgba(249,115,22,0.65)" }
-                            : { background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}
-                          style={{ border: "1.5px solid" }}
-                          transition={{ duration: 0.18 }}
+                          style={{
+                            background: billing === "yearly" ? "rgba(249,115,22,0.13)" : "rgba(255,255,255,0.03)",
+                            border: billing === "yearly" ? "1.5px solid rgba(249,115,22,0.65)" : "1.5px solid rgba(255,255,255,0.08)",
+                            transition: "background 0.18s ease, border-color 0.18s ease",
+                          }}
                         >
                           <motion.div
                             className="absolute -top-2.5 left-1/2 -translate-x-1/2"
@@ -1337,11 +1337,11 @@ export function SubscriptionModal({ open, onOpenChange }: ModalProps) {
                             whileTap={{ scale: 0.97 }}
                             onClick={() => setSitesBilling(b)}
                             className="flex-1 p-4 rounded-xl text-left"
-                            animate={sitesBilling === b
-                              ? { background: "rgba(0,188,212,0.11)", borderColor: "rgba(0,188,212,0.55)" }
-                              : { background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}
-                            style={{ border: "1.5px solid" }}
-                            transition={{ duration: 0.18 }}
+                            style={{
+                              background: sitesBilling === b ? "rgba(0,188,212,0.11)" : "rgba(255,255,255,0.03)",
+                              border: sitesBilling === b ? "1.5px solid rgba(0,188,212,0.55)" : "1.5px solid rgba(255,255,255,0.08)",
+                              transition: "background 0.18s ease, border-color 0.18s ease",
+                            }}
                           >
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-[10px] font-mono text-muted/50 uppercase tracking-wider">{b === "monthly" ? "Havi" : "Évi"}</span>
@@ -1372,10 +1372,13 @@ export function SubscriptionModal({ open, onOpenChange }: ModalProps) {
                       {/* Domain input */}
                       <div>
                         <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-2">Domain nevem</div>
-                        <motion.div
-                          animate={{ borderColor: domain ? "rgba(0,188,212,0.4)" : "rgba(255,255,255,0.1)" }}
+                        <div
                           className="flex items-center rounded-xl overflow-hidden"
-                          style={{ border: "1px solid", background: "#10101f" }}
+                          style={{
+                            border: domain ? "1px solid rgba(0,188,212,0.4)" : "1px solid rgba(255,255,255,0.1)",
+                            background: "#10101f",
+                            transition: "border-color 0.18s ease",
+                          }}
                         >
                           <input
                             value={domain}
@@ -1383,14 +1386,17 @@ export function SubscriptionModal({ open, onOpenChange }: ModalProps) {
                             placeholder="yoursite"
                             className="flex-1 px-3 py-2.5 text-sm text-white bg-transparent focus:outline-none"
                           />
-                          <motion.div
-                            animate={{ color: domain ? "#00bcd4" : "rgba(255,255,255,0.4)" }}
+                          <div
                             className="px-3 py-2.5 text-sm font-mono font-bold shrink-0"
-                            style={{ background: "rgba(0,188,212,0.08)" }}
+                            style={{
+                              color: domain ? "#00bcd4" : "rgba(255,255,255,0.4)",
+                              background: "rgba(0,188,212,0.08)",
+                              transition: "color 0.18s ease",
+                            }}
                           >
                             {sitesBilling === "yearly" ? ".hu" : ".cortex.app"}
-                          </motion.div>
-                        </motion.div>
+                          </div>
+                        </div>
                         <AnimatePresence>
                           {domain && (
                             <motion.div
