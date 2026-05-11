@@ -976,6 +976,8 @@ export function SubscriptionModal({ open, onOpenChange }: ModalProps) {
     }
   }, [open]);
 
+  if (!open) return null;
+
   const monthlyHUF = 6500;
   const yearlyHUF  = 120000;
   const yearlyMonthlyHUF = Math.round(yearlyHUF / 12);
@@ -1006,438 +1008,254 @@ export function SubscriptionModal({ open, onOpenChange }: ModalProps) {
 
   return (
     <>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            key="backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-md"
-            style={{ zIndex: 999 }}
-            onClick={() => onOpenChange(false)}
-          />
-        )}
-      </AnimatePresence>
-      <AnimatePresence>
-        {open && (
-          <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none" style={{ zIndex: 1000 }}>
-            <motion.div
-              key="modal"
-              initial={{ opacity: 0, scale: 0.92, y: 24 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.94, y: 16 }}
-              transition={{ type: "spring", stiffness: 360, damping: 30 }}
-              className="relative w-full pointer-events-auto flex flex-col rounded-2xl overflow-hidden"
-              style={{ maxWidth: 420, background: "#0d0d1c", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 32px 100px rgba(0,0,0,0.98), 0 0 60px rgba(249,115,22,0.06)", maxHeight: "92vh" }}
-              onClick={e => e.stopPropagation()}
-            >
-              {/* Animated top glow strip */}
-              <motion.div
-                className="absolute top-0 left-0 right-0 h-px"
-                style={{ background: tab === "plus" ? "linear-gradient(90deg,transparent,#f97316,transparent)" : "linear-gradient(90deg,transparent,#00bcd4,transparent)" }}
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-              />
+      <ModalBackdrop onClose={() => onOpenChange(false)} />
+      <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none" style={{ zIndex: 1000 }}>
+        <div
+          className="relative w-full pointer-events-auto flex flex-col rounded-2xl overflow-hidden"
+          style={{ maxWidth: 420, background: "#0d0d1c", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 24px 80px rgba(0,0,0,0.95)", maxHeight: "92vh" }}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Top accent line */}
+          <div className="absolute top-0 left-0 right-0 h-px" style={{ background: tab === "plus" ? "linear-gradient(90deg,transparent,#f97316,transparent)" : "linear-gradient(90deg,transparent,#00bcd4,transparent)" }} />
 
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 pt-5 pb-4 shrink-0">
-                <div className="flex items-center gap-2">
-                  <motion.div
-                    animate={{ rotate: [0, 15, -10, 0] }}
-                    transition={{ duration: 3, repeat: Infinity, repeatDelay: 2 }}
-                  >
-                    <Sparkles size={16} className="text-[#f97316]" />
-                  </motion.div>
-                  <span className="font-display font-bold text-base text-white">Cortex Subscriptions</span>
-                </div>
-                <motion.button
-                  whileHover={{ scale: 1.15, rotate: 90 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => onOpenChange(false)}
-                  className="text-muted hover:text-white transition-colors p-1 rounded-lg hover:bg-white/6"
-                >
-                  <X size={16} />
-                </motion.button>
-              </div>
-
-              {/* Tabs */}
-              <div className="flex gap-2 px-5 pb-4 shrink-0">
-                {(["plus", "sites"] as const).map(t => (
-                  <motion.button
-                    key={t}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => setTab(t)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold transition-colors"
-                    style={tab === t
-                      ? t === "plus"
-                        ? { background: "linear-gradient(135deg,#f97316,#c2410c)", color: "#fff", boxShadow: "0 4px 20px rgba(249,115,22,0.35)" }
-                        : { background: "linear-gradient(135deg,#00bcd4,#006064)", color: "#fff", boxShadow: "0 4px 20px rgba(0,188,212,0.3)" }
-                      : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.08)" }}
-                  >
-                    {t === "plus" ? <Star size={13} /> : <Globe size={13} />}
-                    {t === "plus" ? "Cortex Plus" : "Cortex Sites"}
-                  </motion.button>
-                ))}
-              </div>
-
-              {/* Body */}
-              <div className="overflow-y-auto flex-1 px-5 pb-5">
-                <AnimatePresence mode="wait">
-                  {tab === "plus" ? (
-                    <motion.div
-                      key="plus"
-                      initial={{ opacity: 0, x: -18 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 18 }}
-                      transition={{ duration: 0.22, ease: "easeOut" }}
-                      className="space-y-4"
-                    >
-                      {/* Features grid */}
-                      <div className="grid grid-cols-2 gap-2">
-                        {PLUS_FEATURES.map((f, i) => (
-                          <motion.div
-                            key={i}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.055, duration: 0.22 }}
-                            whileHover={{ scale: 1.03 }}
-                            className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold text-white/80 cursor-default"
-                            style={{ background: "rgba(249,115,22,0.07)", border: "1px solid rgba(249,115,22,0.18)" }}
-                          >
-                            <span className="text-[#f97316]">{f.icon}</span>
-                            {f.label}
-                          </motion.div>
-                        ))}
-                      </div>
-
-                      {/* Plan label */}
-                      <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest">Válassz csomagot</div>
-
-                      {/* Plan cards */}
-                      <div className="flex gap-3">
-                        {/* Monthly */}
-                        <motion.button
-                          whileHover={{ scale: 1.03 }}
-                          whileTap={{ scale: 0.97 }}
-                          onClick={() => setBilling("monthly")}
-                          className="flex-1 flex flex-col p-4 rounded-xl text-left"
-                          style={{
-                            background: billing === "monthly" ? "rgba(249,115,22,0.10)" : "rgba(255,255,255,0.03)",
-                            border: billing === "monthly" ? "1.5px solid rgba(249,115,22,0.55)" : "1.5px solid rgba(255,255,255,0.08)",
-                            transition: "background 0.18s ease, border-color 0.18s ease",
-                          }}
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-[10px] font-mono text-muted/60 uppercase tracking-wider">Havi</span>
-                            <motion.div
-                              animate={billing === "monthly" ? { scale: 1 } : { scale: 0.8 }}
-                              className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${billing === "monthly" ? "border-[#f97316]" : "border-white/20"}`}
-                            >
-                              <AnimatePresence>
-                                {billing === "monthly" && (
-                                  <motion.div
-                                    initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-                                    className="w-1.5 h-1.5 rounded-full bg-[#f97316]"
-                                  />
-                                )}
-                              </AnimatePresence>
-                            </motion.div>
-                          </div>
-                          <div className="font-display font-bold text-xl text-white">{monthlyHUF.toLocaleString("hu-HU")}</div>
-                          <div className="text-[11px] font-bold text-white"> HUF<span className="text-muted/50 font-normal">/hó</span></div>
-                          <div className="text-[10px] text-muted/40 mt-1">≈16.50 EUR/hó</div>
-                        </motion.button>
-
-                        {/* Yearly */}
-                        <motion.button
-                          whileHover={{ scale: 1.03 }}
-                          whileTap={{ scale: 0.97 }}
-                          onClick={() => setBilling("yearly")}
-                          className="flex-1 flex flex-col p-4 rounded-xl text-left relative overflow-visible"
-                          style={{
-                            background: billing === "yearly" ? "rgba(249,115,22,0.13)" : "rgba(255,255,255,0.03)",
-                            border: billing === "yearly" ? "1.5px solid rgba(249,115,22,0.65)" : "1.5px solid rgba(255,255,255,0.08)",
-                            transition: "background 0.18s ease, border-color 0.18s ease",
-                          }}
-                        >
-                          <motion.div
-                            className="absolute -top-2.5 left-1/2 -translate-x-1/2"
-                            animate={{ y: [0, -2, 0] }}
-                            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                          >
-                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: "linear-gradient(90deg,#f97316,#c2410c)", color: "#fff", boxShadow: "0 2px 10px rgba(249,115,22,0.5)" }}>BEST VALUE</span>
-                          </motion.div>
-                          <div className="flex items-center justify-between mb-1 mt-1">
-                            <span className="text-[10px] font-mono text-muted/60 uppercase tracking-wider">Évi</span>
-                            <motion.div
-                              animate={billing === "yearly" ? { scale: 1 } : { scale: 0.8 }}
-                              className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${billing === "yearly" ? "border-[#f97316]" : "border-white/20"}`}
-                            >
-                              <AnimatePresence>
-                                {billing === "yearly" && (
-                                  <motion.div
-                                    initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-                                    className="w-1.5 h-1.5 rounded-full bg-[#f97316]"
-                                  />
-                                )}
-                              </AnimatePresence>
-                            </motion.div>
-                          </div>
-                          <motion.div
-                            key={billing}
-                            initial={{ opacity: 0, y: -4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="font-display font-bold text-xl text-white"
-                          >
-                            {yearlyHUF.toLocaleString("hu-HU")}
-                          </motion.div>
-                          <div className="text-[11px] font-bold text-white"> HUF<span className="text-muted/50 font-normal">/év</span></div>
-                          <div className="text-[10px] text-[#f97316] mt-1">≈{yearlyMonthlyHUF.toLocaleString("hu-HU")} HUF/hó · −54%</div>
-                        </motion.button>
-                      </div>
-
-                      {/* Promo code */}
-                      <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest">Promó kód</div>
-                      <div className="flex gap-2">
-                        <input
-                          value={promoInput}
-                          onChange={e => { setPromoInput(e.target.value); setPromoError(""); setPromoApplied(null); }}
-                          onKeyDown={e => e.key === "Enter" && applyPromo()}
-                          placeholder="Promó kód..."
-                          className="flex-1 px-3 py-2.5 rounded-xl text-sm text-white focus:outline-none transition-all"
-                          style={{ background: "#10101f", border: `1px solid ${promoApplied ? "rgba(0,255,136,0.45)" : promoError ? "rgba(239,68,68,0.45)" : "rgba(255,255,255,0.08)"}` }}
-                        />
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={applyPromo}
-                          className="px-4 py-2.5 rounded-xl text-sm font-bold"
-                          style={{ background: "linear-gradient(135deg,#f97316,#c2410c)", color: "#fff" }}
-                        >
-                          Alkalmaz
-                        </motion.button>
-                      </div>
-
-                      <AnimatePresence>
-                        {promoApplied && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -6, scale: 0.96 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -4, scale: 0.96 }}
-                            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs"
-                            style={{ background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.2)", color: "#00ff88" }}
-                          >
-                            <CheckCircle2 size={12} /> {promoApplied.desc}
-                          </motion.div>
-                        )}
-                        {promoError && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -6, scale: 0.96 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs"
-                            style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}
-                          >
-                            <AlertCircle size={12} /> {promoError}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-
-                      {/* Limits info */}
-                      <div className="text-center text-[11px] text-muted/40 font-mono">
-                        Ingyenes: 10 üzenet/nap &nbsp;·&nbsp; Vendég: 5 üzenet/nap
-                      </div>
-
-                      {/* CTA */}
-                      <motion.button
-                        whileHover={{ scale: 1.02, boxShadow: "0 0 28px rgba(249,115,22,0.4)" }}
-                        whileTap={{ scale: 0.98 }}
-                        className="w-full py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2"
-                        style={{ background: "linear-gradient(135deg,#f97316,#c2410c)", color: "#fff" }}
-                      >
-                        <CreditCard size={15} />
-                        <motion.span
-                          animate={{ opacity: [1, 0.7, 1] }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                        >
-                          Hamarosan elérhető a fizetés
-                        </motion.span>
-                      </motion.button>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="sites"
-                      initial={{ opacity: 0, x: 18 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -18 }}
-                      transition={{ duration: 0.22, ease: "easeOut" }}
-                      className="space-y-4"
-                    >
-                      {/* Sites header */}
-                      <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="flex items-center gap-3 p-4 rounded-xl"
-                        style={{ background: "rgba(0,188,212,0.07)", border: "1px solid rgba(0,188,212,0.2)" }}
-                      >
-                        <motion.div
-                          animate={{ rotate: [0, 10, -8, 0] }}
-                          transition={{ duration: 4, repeat: Infinity, repeatDelay: 1 }}
-                        >
-                          <Globe size={28} className="text-[#00bcd4]" />
-                        </motion.div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-display font-bold text-base text-white">Cortex Sites</span>
-                            <motion.span
-                              animate={{ opacity: [0.7, 1, 0.7] }}
-                              transition={{ duration: 2, repeat: Infinity }}
-                              className="text-[9px] font-bold px-2 py-0.5 rounded-full"
-                              style={{ background: "rgba(0,188,212,0.2)", color: "#00bcd4", border: "1px solid rgba(0,188,212,0.3)" }}
-                            >
-                              HAMAROSAN
-                            </motion.span>
-                          </div>
-                          <div className="text-xs text-muted/60 mt-0.5">Építsd meg a weboldalad Cortex AI-val — egy kattintással telepítve.</div>
-                        </div>
-                      </motion.div>
-
-                      {/* Free plan */}
-                      <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.05 }}
-                        className="p-4 rounded-xl"
-                        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
-                      >
-                        <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-1">INGYENES</div>
-                        <div className="text-[10px] text-muted/40 mb-1">Mindig ingyenes</div>
-                        <div className="text-[11px] text-[#00bcd4] font-mono mb-2">yoursite.cortex.app</div>
-                        <div className="space-y-1">
-                          {["1 webhely", "500 MB tárhely", "SSL", "Cortex CDN"].map((f, i) => (
-                            <motion.div
-                              key={i}
-                              initial={{ opacity: 0, x: -8 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.08 + i * 0.05 }}
-                              className="flex items-center gap-2 text-xs text-white/60"
-                            >
-                              <CheckCircle2 size={11} className="text-[#00bcd4]" /> {f}
-                            </motion.div>
-                          ))}
-                        </div>
-                      </motion.div>
-
-                      {/* Sites PRO */}
-                      <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest">Cortex Sites Pro</div>
-                      <div className="flex gap-2">
-                        {(["monthly", "yearly"] as const).map(b => (
-                          <motion.button
-                            key={b}
-                            whileHover={{ scale: 1.03 }}
-                            whileTap={{ scale: 0.97 }}
-                            onClick={() => setSitesBilling(b)}
-                            className="flex-1 p-4 rounded-xl text-left"
-                            style={{
-                              background: sitesBilling === b ? "rgba(0,188,212,0.11)" : "rgba(255,255,255,0.03)",
-                              border: sitesBilling === b ? "1.5px solid rgba(0,188,212,0.55)" : "1.5px solid rgba(255,255,255,0.08)",
-                              transition: "background 0.18s ease, border-color 0.18s ease",
-                            }}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-[10px] font-mono text-muted/50 uppercase tracking-wider">{b === "monthly" ? "Havi" : "Évi"}</span>
-                              {b === "yearly" && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(0,188,212,0.2)", color: "#00bcd4" }}>-17%</span>}
-                            </div>
-                            <div className="font-display font-bold text-xl text-white">{(b === "monthly" ? sitesMonthly : sitesYearly).toLocaleString("hu-HU")}</div>
-                            <div className="text-[11px] font-bold text-white"> HUF<span className="text-muted/50 font-normal">{b === "monthly" ? "/hó" : "/év"}</span></div>
-                            <div className="text-[10px] text-muted/40 mt-1">{b === "monthly" ? "≈5.05 EUR/hó" : "≈50.51 EUR/év"}</div>
-                          </motion.button>
-                        ))}
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        {SITES_PRO_FEATURES.map((f, i) => (
-                          <motion.div
-                            key={i}
-                            initial={{ opacity: 0, y: 6 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.04 }}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-white/60"
-                            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
-                          >
-                            <CheckCircle2 size={10} className="text-[#00bcd4] shrink-0" /> {f}
-                          </motion.div>
-                        ))}
-                      </div>
-
-                      {/* Domain input */}
-                      <div>
-                        <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-2">Domain nevem</div>
-                        <div
-                          className="flex items-center rounded-xl overflow-hidden"
-                          style={{
-                            border: domain ? "1px solid rgba(0,188,212,0.4)" : "1px solid rgba(255,255,255,0.1)",
-                            background: "#10101f",
-                            transition: "border-color 0.18s ease",
-                          }}
-                        >
-                          <input
-                            value={domain}
-                            onChange={e => setDomain(e.target.value.replace(/[^a-zA-Z0-9-]/g, "").toLowerCase())}
-                            placeholder="yoursite"
-                            className="flex-1 px-3 py-2.5 text-sm text-white bg-transparent focus:outline-none"
-                          />
-                          <div
-                            className="px-3 py-2.5 text-sm font-mono font-bold shrink-0"
-                            style={{
-                              color: domain ? "#00bcd4" : "rgba(255,255,255,0.4)",
-                              background: "rgba(0,188,212,0.08)",
-                              transition: "color 0.18s ease",
-                            }}
-                          >
-                            {sitesBilling === "yearly" ? ".hu" : ".cortex.app"}
-                          </div>
-                        </div>
-                        <AnimatePresence>
-                          {domain && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -4 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -4 }}
-                              transition={{ duration: 0.18 }}
-                              className="text-[10px] text-[#00bcd4] mt-1.5 font-mono"
-                            >
-                              ✓ {domain}{sitesBilling === "yearly" ? ".hu" : ".cortex.app"}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-
-                      {/* CTA */}
-                      <motion.button
-                        whileHover={{ scale: domain ? 1.02 : 1, boxShadow: domain ? "0 0 24px rgba(0,188,212,0.35)" : "none" }}
-                        whileTap={{ scale: domain ? 0.98 : 1 }}
-                        className="w-full py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2"
-                        style={{
-                          background: domain ? "linear-gradient(135deg,#00bcd4,#006064)" : "rgba(255,255,255,0.05)",
-                          color: domain ? "#fff" : "rgba(255,255,255,0.3)",
-                          cursor: domain ? "pointer" : "not-allowed",
-                        }}
-                      >
-                        <Globe size={15} />
-                        {domain ? "Foglalás — hamarosan elérhető" : "Előbb add meg a domain nevet"}
-                      </motion.button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </motion.div>
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 pt-5 pb-4 shrink-0">
+            <div className="flex items-center gap-2">
+              <Star size={15} className="text-[#f97316]" />
+              <span className="font-display font-bold text-base text-white">Cortex Subscriptions</span>
+            </div>
+            <button onClick={() => onOpenChange(false)} className="text-muted hover:text-white transition-colors p-1 rounded-lg hover:bg-white/6">
+              <X size={16} />
+            </button>
           </div>
-        )}
-      </AnimatePresence>
+
+          {/* Tabs */}
+          <div className="flex gap-2 px-5 pb-4 shrink-0">
+            <button
+              onClick={() => setTab("plus")}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold transition-all"
+              style={tab === "plus"
+                ? { background: "linear-gradient(135deg,#f97316,#c2410c)", color: "#fff", boxShadow: "0 4px 16px rgba(249,115,22,0.3)" }
+                : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              <Star size={13} /> Cortex Plus
+            </button>
+            <button
+              onClick={() => setTab("sites")}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold transition-all"
+              style={tab === "sites"
+                ? { background: "linear-gradient(135deg,#00bcd4,#006064)", color: "#fff", boxShadow: "0 4px 16px rgba(0,188,212,0.25)" }
+                : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              <Globe size={13} /> Cortex Sites
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="overflow-y-auto flex-1 px-5 pb-5">
+            {tab === "plus" ? (
+              <div className="space-y-4">
+                {/* Features grid */}
+                <div className="grid grid-cols-2 gap-2">
+                  {PLUS_FEATURES.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold text-white/80"
+                      style={{ background: "rgba(249,115,22,0.07)", border: "1px solid rgba(249,115,22,0.18)" }}>
+                      <span className="text-[#f97316]">{f.icon}</span>
+                      {f.label}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Plan label */}
+                <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest">Válassz csomagot</div>
+
+                {/* Plan cards */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setBilling("monthly")}
+                    className="flex-1 flex flex-col p-4 rounded-xl text-left transition-all"
+                    style={{
+                      background: billing === "monthly" ? "rgba(249,115,22,0.10)" : "rgba(255,255,255,0.03)",
+                      border: billing === "monthly" ? "1.5px solid rgba(249,115,22,0.55)" : "1.5px solid rgba(255,255,255,0.08)",
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-mono text-muted/60 uppercase tracking-wider">Havi</span>
+                      <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${billing === "monthly" ? "border-[#f97316]" : "border-white/20"}`}>
+                        {billing === "monthly" && <div className="w-1.5 h-1.5 rounded-full bg-[#f97316]" />}
+                      </div>
+                    </div>
+                    <div className="font-display font-bold text-xl text-white">{monthlyHUF.toLocaleString("hu-HU")}</div>
+                    <div className="text-[11px] font-bold text-white"> HUF<span className="text-muted/50 font-normal">/hó</span></div>
+                    <div className="text-[10px] text-muted/40 mt-1">≈16.50 EUR/hó</div>
+                  </button>
+
+                  <button
+                    onClick={() => setBilling("yearly")}
+                    className="flex-1 flex flex-col p-4 rounded-xl text-left relative overflow-visible transition-all"
+                    style={{
+                      background: billing === "yearly" ? "rgba(249,115,22,0.13)" : "rgba(255,255,255,0.03)",
+                      border: billing === "yearly" ? "1.5px solid rgba(249,115,22,0.65)" : "1.5px solid rgba(255,255,255,0.08)",
+                    }}
+                  >
+                    <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: "linear-gradient(90deg,#f97316,#c2410c)", color: "#fff" }}>BEST VALUE</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-1 mt-1">
+                      <span className="text-[10px] font-mono text-muted/60 uppercase tracking-wider">Évi</span>
+                      <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${billing === "yearly" ? "border-[#f97316]" : "border-white/20"}`}>
+                        {billing === "yearly" && <div className="w-1.5 h-1.5 rounded-full bg-[#f97316]" />}
+                      </div>
+                    </div>
+                    <div className="font-display font-bold text-xl text-white">{yearlyHUF.toLocaleString("hu-HU")}</div>
+                    <div className="text-[11px] font-bold text-white"> HUF<span className="text-muted/50 font-normal">/év</span></div>
+                    <div className="text-[10px] text-[#f97316] mt-1">≈{yearlyMonthlyHUF.toLocaleString("hu-HU")} HUF/hó · −54%</div>
+                  </button>
+                </div>
+
+                {/* Promo code */}
+                <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest">Promó kód</div>
+                <div className="flex gap-2">
+                  <input
+                    value={promoInput}
+                    onChange={e => { setPromoInput(e.target.value); setPromoError(""); setPromoApplied(null); }}
+                    onKeyDown={e => e.key === "Enter" && applyPromo()}
+                    placeholder="Promó kód..."
+                    className="flex-1 px-3 py-2.5 rounded-xl text-sm text-white focus:outline-none transition-all"
+                    style={{ background: "#10101f", border: `1px solid ${promoApplied ? "rgba(0,255,136,0.45)" : promoError ? "rgba(239,68,68,0.45)" : "rgba(255,255,255,0.08)"}` }}
+                  />
+                  <button
+                    onClick={applyPromo}
+                    className="px-4 py-2.5 rounded-xl text-sm font-bold transition-opacity hover:opacity-90"
+                    style={{ background: "linear-gradient(135deg,#f97316,#c2410c)", color: "#fff" }}
+                  >
+                    Alkalmaz
+                  </button>
+                </div>
+                {promoApplied && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs" style={{ background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.2)", color: "#00ff88" }}>
+                    <CheckCircle2 size={12} /> {promoApplied.desc}
+                  </div>
+                )}
+                {promoError && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs" style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+                    <AlertCircle size={12} /> {promoError}
+                  </div>
+                )}
+
+                {/* Limits info */}
+                <div className="text-center text-[11px] text-muted/40 font-mono">
+                  Ingyenes: 10 üzenet/nap &nbsp;·&nbsp; Vendég: 5 üzenet/nap
+                </div>
+
+                {/* CTA */}
+                <button
+                  className="w-full py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-opacity hover:opacity-90"
+                  style={{ background: "linear-gradient(135deg,#f97316,#c2410c)", color: "#fff" }}
+                >
+                  <CreditCard size={15} /> Hamarosan elérhető a fizetés
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Sites header */}
+                <div className="flex items-center gap-3 p-4 rounded-xl" style={{ background: "rgba(0,188,212,0.07)", border: "1px solid rgba(0,188,212,0.2)" }}>
+                  <Globe size={28} className="text-[#00bcd4] shrink-0" />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-display font-bold text-base text-white">Cortex Sites</span>
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(0,188,212,0.2)", color: "#00bcd4", border: "1px solid rgba(0,188,212,0.3)" }}>HAMAROSAN</span>
+                    </div>
+                    <div className="text-xs text-muted/60 mt-0.5">Építsd meg a weboldalad Cortex AI-val — egy kattintással telepítve.</div>
+                  </div>
+                </div>
+
+                {/* Free plan */}
+                <div className="p-4 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-1">INGYENES</div>
+                  <div className="text-[10px] text-muted/40 mb-1">Mindig ingyenes</div>
+                  <div className="text-[11px] text-[#00bcd4] font-mono mb-2">yoursite.cortex.app</div>
+                  <div className="space-y-1">
+                    {["1 webhely", "500 MB tárhely", "SSL", "Cortex CDN"].map((f, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs text-white/60">
+                        <CheckCircle2 size={11} className="text-[#00bcd4]" /> {f}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sites PRO */}
+                <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest">Cortex Sites Pro</div>
+                <div className="flex gap-2">
+                  {(["monthly", "yearly"] as const).map(b => (
+                    <button
+                      key={b}
+                      onClick={() => setSitesBilling(b)}
+                      className="flex-1 p-4 rounded-xl text-left transition-all"
+                      style={{
+                        background: sitesBilling === b ? "rgba(0,188,212,0.11)" : "rgba(255,255,255,0.03)",
+                        border: sitesBilling === b ? "1.5px solid rgba(0,188,212,0.55)" : "1.5px solid rgba(255,255,255,0.08)",
+                      }}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-mono text-muted/50 uppercase tracking-wider">{b === "monthly" ? "Havi" : "Évi"}</span>
+                        {b === "yearly" && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(0,188,212,0.2)", color: "#00bcd4" }}>-17%</span>}
+                      </div>
+                      <div className="font-display font-bold text-xl text-white">{(b === "monthly" ? sitesMonthly : sitesYearly).toLocaleString("hu-HU")}</div>
+                      <div className="text-[11px] font-bold text-white"> HUF<span className="text-muted/50 font-normal">{b === "monthly" ? "/hó" : "/év"}</span></div>
+                      <div className="text-[10px] text-muted/40 mt-1">{b === "monthly" ? "≈5.05 EUR/hó" : "≈50.51 EUR/év"}</div>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {SITES_PRO_FEATURES.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-white/60" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <CheckCircle2 size={10} className="text-[#00bcd4] shrink-0" /> {f}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Domain input */}
+                <div>
+                  <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-2">Domain nevem</div>
+                  <div className="flex items-center rounded-xl overflow-hidden transition-all"
+                    style={{ border: domain ? "1px solid rgba(0,188,212,0.4)" : "1px solid rgba(255,255,255,0.1)", background: "#10101f" }}>
+                    <input
+                      value={domain}
+                      onChange={e => setDomain(e.target.value.replace(/[^a-zA-Z0-9-]/g, "").toLowerCase())}
+                      placeholder="yoursite"
+                      className="flex-1 px-3 py-2.5 text-sm text-white bg-transparent focus:outline-none"
+                    />
+                    <div className="px-3 py-2.5 text-sm font-mono font-bold shrink-0"
+                      style={{ color: domain ? "#00bcd4" : "rgba(255,255,255,0.4)", background: "rgba(0,188,212,0.08)" }}>
+                      {sitesBilling === "yearly" ? ".hu" : ".cortex.app"}
+                    </div>
+                  </div>
+                  {domain && (
+                    <div className="text-[10px] text-[#00bcd4] mt-1.5 font-mono">
+                      ✓ {domain}{sitesBilling === "yearly" ? ".hu" : ".cortex.app"}
+                    </div>
+                  )}
+                </div>
+
+                {/* CTA */}
+                <button
+                  className="w-full py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all"
+                  style={{
+                    background: domain ? "linear-gradient(135deg,#00bcd4,#006064)" : "rgba(255,255,255,0.05)",
+                    color: domain ? "#fff" : "rgba(255,255,255,0.3)",
+                    cursor: domain ? "pointer" : "not-allowed",
+                  }}
+                >
+                  <Globe size={15} />
+                  {domain ? "Foglalás — hamarosan elérhető" : "Előbb add meg a domain nevet"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </>
   );
 }
