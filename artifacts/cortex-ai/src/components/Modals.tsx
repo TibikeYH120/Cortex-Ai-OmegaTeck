@@ -1005,9 +1005,9 @@ export function SubscriptionModal({ open, onOpenChange }: ModalProps) {
   const SITES_PRO_FEATURES = ["Egyedi .hu domain", "Korlátlan webhely", "10 GB tárhely", "SSL + CDN", "Analitika", "Prioritás hosting"];
 
   return (
-    <AnimatePresence>
-      {open && (
-        <>
+    <>
+      <AnimatePresence>
+        {open && (
           <motion.div
             key="backdrop"
             initial={{ opacity: 0 }}
@@ -1018,6 +1018,10 @@ export function SubscriptionModal({ open, onOpenChange }: ModalProps) {
             style={{ zIndex: 999 }}
             onClick={() => onOpenChange(false)}
           />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {open && (
           <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none" style={{ zIndex: 1000 }}>
             <motion.div
               key="modal"
@@ -1400,10 +1404,11 @@ export function SubscriptionModal({ open, onOpenChange }: ModalProps) {
                         <AnimatePresence>
                           {domain && (
                             <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: "auto" }}
-                              exit={{ opacity: 0, height: 0 }}
-                              className="text-[10px] text-[#00bcd4] mt-1.5 font-mono overflow-hidden"
+                              initial={{ opacity: 0, y: -4 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -4 }}
+                              transition={{ duration: 0.18 }}
+                              className="text-[10px] text-[#00bcd4] mt-1.5 font-mono"
                             >
                               ✓ {domain}{sitesBilling === "yearly" ? ".hu" : ".cortex.app"}
                             </motion.div>
@@ -1431,8 +1436,8 @@ export function SubscriptionModal({ open, onOpenChange }: ModalProps) {
               </div>
             </motion.div>
           </div>
-        </>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
