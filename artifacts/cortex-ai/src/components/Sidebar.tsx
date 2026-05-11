@@ -9,7 +9,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { MessageSquarePlus, MessageSquare, Trash2, LogOut, Settings, User, ChevronLeft, Zap } from "lucide-react";
 import { cn, formatRelativeDate } from "@/lib/utils";
-import { ProfileModal, SettingsModal } from "./Modals";
+import { ProfileModal, SettingsModal, SubscriptionModal } from "./Modals";
 import { UserAvatar } from "./AvatarUtils";
 import { Link } from "wouter";
 
@@ -18,6 +18,7 @@ export function Sidebar() {
   const queryClient = useQueryClient();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
 
   const { data: conversations = [] } = useListAnthropicConversations();
 
@@ -161,18 +162,19 @@ export function Sidebar() {
 
         {/* Cortex Plus upsell */}
         <div className="px-3 pb-2 shrink-0">
-          <Link href="/pricing">
-            <a className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl bg-gradient-to-r from-primary/8 to-secondary/8 border border-primary/20 hover:border-primary/40 hover:from-primary/12 hover:to-secondary/12 transition-all group">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(0,208,255,0.3)]">
-                <Zap size={13} className="text-black" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-display font-bold text-white leading-tight">CORTEX Plus</div>
-                <div className="text-[10px] font-mono text-primary/70 leading-tight">€12.99/mo · Full access</div>
-              </div>
-              <div className="text-[9px] font-mono text-primary/50 group-hover:text-primary/80 transition-colors tracking-widest uppercase">→</div>
-            </a>
-          </Link>
+          <button
+            onClick={() => setSubscriptionModalOpen(true)}
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl bg-gradient-to-r from-[#f97316]/10 to-[#c2410c]/8 border border-[#f97316]/25 hover:border-[#f97316]/50 hover:from-[#f97316]/15 hover:to-[#c2410c]/12 transition-all group"
+          >
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#f97316] to-[#c2410c] flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(249,115,22,0.35)]">
+              <Zap size={13} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <div className="text-xs font-display font-bold text-white leading-tight">CORTEX Plus</div>
+              <div className="text-[10px] font-mono text-[#f97316]/70 leading-tight">6 500 HUF/hó · Korlátlan</div>
+            </div>
+            <div className="text-[9px] font-mono text-[#f97316]/50 group-hover:text-[#f97316]/80 transition-colors tracking-widest uppercase">→</div>
+          </button>
         </div>
 
         {/* User Footer */}
@@ -226,6 +228,7 @@ export function Sidebar() {
         <>
           <ProfileModal open={profileModalOpen} onOpenChange={setProfileModalOpen} />
           <SettingsModal open={settingsModalOpen} onOpenChange={setSettingsModalOpen} />
+          <SubscriptionModal open={subscriptionModalOpen} onOpenChange={setSubscriptionModalOpen} />
         </>,
         document.body
       )}

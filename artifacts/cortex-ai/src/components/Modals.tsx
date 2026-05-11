@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import {
   X, Save, ShieldAlert, User, Cpu, Wifi, Lock, BarChart3,
   Eye, EyeOff, CheckCircle2, AlertCircle, MessageSquare, Zap, Shield,
-  Info, Globe, Volume2, Palette, Key, Mic, Play, Square, Loader2, BookOpen
+  Info, Globe, Volume2, Palette, Key, Mic, Play, Square, Loader2, BookOpen,
+  Infinity, Image, Star, CreditCard, Search
 } from "lucide-react";
 import { useGetProfile, useUpdateProfile, getGetProfileQueryKey, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useAppState } from "@/hooks/use-app-state";
@@ -946,6 +947,302 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
             >
               Close
             </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Promo code definitions ────────────────────────────────────────────────────
+const PROMO_CODES: Record<string, { label: string; desc: string }> = {
+  "cortexstart": { label: "40% off – 2 months", desc: "CortexStart: 40% kedvezmény az első 2 hónapra" },
+  "corforge":    { label: "1 month FREE",        desc: "CorForge: Az első hónap ingyenes" },
+};
+
+export function SubscriptionModal({ open, onOpenChange }: ModalProps) {
+  const [tab, setTab] = useState<"plus" | "sites">("plus");
+  const [billing, setBilling] = useState<"monthly" | "yearly">("yearly");
+  const [sitesBilling, setSitesBilling] = useState<"monthly" | "yearly">("monthly");
+  const [promoInput, setPromoInput] = useState("");
+  const [promoApplied, setPromoApplied] = useState<{ label: string; desc: string } | null>(null);
+  const [promoError, setPromoError] = useState("");
+  const [domain, setDomain] = useState("");
+
+  useEffect(() => {
+    if (!open) {
+      setPromoInput(""); setPromoApplied(null); setPromoError(""); setDomain("");
+    }
+  }, [open]);
+
+  if (!open) return null;
+
+  const monthlyHUF = 6500;
+  const yearlyHUF  = 120000;
+  const yearlyMonthlyHUF = Math.round(yearlyHUF / 12);
+  const sitesMonthly = 1990;
+  const sitesYearly  = 19900;
+
+  const applyPromo = () => {
+    const code = promoInput.trim().toLowerCase();
+    if (PROMO_CODES[code]) {
+      setPromoApplied(PROMO_CODES[code]);
+      setPromoError("");
+    } else {
+      setPromoApplied(null);
+      setPromoError("Érvénytelen promó kód.");
+    }
+  };
+
+  const PLUS_FEATURES = [
+    { icon: <Infinity size={13} />, label: "Korlátlan üzenet" },
+    { icon: <Zap size={13} />, label: "Prioritás válasz" },
+    { icon: <Search size={13} />, label: "Web keresés" },
+    { icon: <Image size={13} />, label: "Kép támogatás" },
+    { icon: <Star size={13} />, label: "Plus jelvény" },
+    { icon: <Lock size={13} />, label: "Korai hozzáférés" },
+  ];
+
+  return (
+    <>
+      <ModalBackdrop onClose={() => onOpenChange(false)} />
+      <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none" style={{ zIndex: 1000 }}>
+        <div
+          className="relative w-full pointer-events-auto flex flex-col rounded-2xl overflow-hidden"
+          style={{ maxWidth: 420, background: "#0d0d1c", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 24px 80px rgba(0,0,0,0.95)", maxHeight: "92vh" }}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 pt-5 pb-4 shrink-0">
+            <div className="flex items-center gap-2">
+              <Star size={15} className="text-[#f97316]" />
+              <span className="font-display font-bold text-base text-white">Cortex Subscriptions</span>
+            </div>
+            <button onClick={() => onOpenChange(false)} className="text-muted hover:text-white transition-colors p-1 rounded-lg hover:bg-white/6">
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-2 px-5 pb-4 shrink-0">
+            <button
+              onClick={() => setTab("plus")}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold transition-all"
+              style={tab === "plus"
+                ? { background: "#f97316", color: "#fff" }
+                : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              <Star size={13} /> Cortex Plus
+            </button>
+            <button
+              onClick={() => setTab("sites")}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold transition-all"
+              style={tab === "sites"
+                ? { background: "linear-gradient(135deg,#00bcd4,#006064)", color: "#fff" }
+                : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              <Globe size={13} /> Cortex Sites
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="overflow-y-auto flex-1 px-5 pb-5">
+            {tab === "plus" ? (
+              <div className="space-y-4">
+                {/* Features grid */}
+                <div className="grid grid-cols-2 gap-2">
+                  {PLUS_FEATURES.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold text-white/80"
+                      style={{ background: "rgba(249,115,22,0.07)", border: "1px solid rgba(249,115,22,0.18)" }}>
+                      <span className="text-[#f97316]">{f.icon}</span>
+                      {f.label}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Plan cards */}
+                <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest">Válassz csomagot</div>
+                <div className="flex gap-3">
+                  {/* Monthly */}
+                  <button
+                    onClick={() => setBilling("monthly")}
+                    className="flex-1 flex flex-col p-4 rounded-xl transition-all text-left"
+                    style={billing === "monthly"
+                      ? { background: "rgba(249,115,22,0.08)", border: "1.5px solid rgba(249,115,22,0.5)" }
+                      : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-mono text-muted/60 uppercase tracking-wider">Havi</span>
+                      <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${billing === "monthly" ? "border-[#f97316]" : "border-white/20"}`}>
+                        {billing === "monthly" && <div className="w-1.5 h-1.5 rounded-full bg-[#f97316]" />}
+                      </div>
+                    </div>
+                    <div className="font-display font-bold text-xl text-white">{monthlyHUF.toLocaleString("hu-HU")}</div>
+                    <div className="text-[11px] font-bold text-white"> HUF<span className="text-muted/50 font-normal">/hó</span></div>
+                    <div className="text-[10px] text-muted/40 mt-1">≈16.50 EUR/hó</div>
+                  </button>
+
+                  {/* Yearly */}
+                  <button
+                    onClick={() => setBilling("yearly")}
+                    className="flex-1 flex flex-col p-4 rounded-xl transition-all text-left relative"
+                    style={billing === "yearly"
+                      ? { background: "rgba(249,115,22,0.12)", border: "1.5px solid rgba(249,115,22,0.6)" }
+                      : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  >
+                    <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#f97316", color: "#fff" }}>BEST VALUE</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-1 mt-1">
+                      <span className="text-[10px] font-mono text-muted/60 uppercase tracking-wider">Évi</span>
+                      <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${billing === "yearly" ? "border-[#f97316]" : "border-white/20"}`}>
+                        {billing === "yearly" && <div className="w-1.5 h-1.5 rounded-full bg-[#f97316]" />}
+                      </div>
+                    </div>
+                    <div className="font-display font-bold text-xl text-white">{yearlyHUF.toLocaleString("hu-HU")}</div>
+                    <div className="text-[11px] font-bold text-white"> HUF<span className="text-muted/50 font-normal">/év</span></div>
+                    <div className="text-[10px] text-[#f97316] mt-1">≈{yearlyMonthlyHUF.toLocaleString("hu-HU")} HUF/hó · −54%</div>
+                  </button>
+                </div>
+
+                {/* Promo code */}
+                <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest">Promó kód</div>
+                <div className="flex gap-2">
+                  <input
+                    value={promoInput}
+                    onChange={e => { setPromoInput(e.target.value); setPromoError(""); setPromoApplied(null); }}
+                    onKeyDown={e => e.key === "Enter" && applyPromo()}
+                    placeholder="Promó kód..."
+                    className="flex-1 px-3 py-2.5 rounded-xl text-sm text-white focus:outline-none transition-all"
+                    style={{ background: "#10101f", border: `1px solid ${promoApplied ? "rgba(0,255,136,0.4)" : promoError ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.08)"}` }}
+                  />
+                  <button
+                    onClick={applyPromo}
+                    className="px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
+                    style={{ background: "#c2410c", color: "#fff" }}
+                  >
+                    Alkalmaz
+                  </button>
+                </div>
+                {promoApplied && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs" style={{ background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.2)", color: "#00ff88" }}>
+                    <CheckCircle2 size={12} /> {promoApplied.desc}
+                  </div>
+                )}
+                {promoError && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs" style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+                    <AlertCircle size={12} /> {promoError}
+                  </div>
+                )}
+
+                {/* Limits info */}
+                <div className="text-center text-[11px] text-muted/40 font-mono">
+                  Ingyenes: 10 üzenet/nap &nbsp;·&nbsp; Vendég: 5 üzenet/nap
+                </div>
+
+                {/* CTA */}
+                <button
+                  className="w-full py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all"
+                  style={{ background: "linear-gradient(135deg,#f97316,#c2410c)", color: "#fff", opacity: 0.85 }}
+                >
+                  <CreditCard size={15} /> Hamarosan elérhető a fizetés
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Sites header */}
+                <div className="flex items-center gap-3 p-4 rounded-xl" style={{ background: "rgba(0,188,212,0.07)", border: "1px solid rgba(0,188,212,0.2)" }}>
+                  <Globe size={28} className="text-[#00bcd4] shrink-0" />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-display font-bold text-base text-white">Cortex Sites</span>
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(0,188,212,0.2)", color: "#00bcd4", border: "1px solid rgba(0,188,212,0.3)" }}>HAMAROSAN</span>
+                    </div>
+                    <div className="text-xs text-muted/60 mt-0.5">Építsd meg a weboldalad Cortex AI-val — egy kattintással telepítve.</div>
+                  </div>
+                </div>
+
+                {/* Free plan */}
+                <div className="p-4 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-1">INGYENES</div>
+                  <div className="text-[10px] text-muted/40 mb-1">Mindig ingyenes</div>
+                  <div className="text-[11px] text-[#00bcd4] font-mono mb-2">yoursite.cortex.app</div>
+                  <div className="space-y-1">
+                    {["1 webhely", "500 MB tárhely", "SSL", "Cortex CDN"].map((f, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs text-white/60">
+                        <CheckCircle2 size={11} className="text-[#00bcd4]" /> {f}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sites PRO */}
+                <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest">Cortex Sites Pro</div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSitesBilling("monthly")}
+                    className="flex-1 p-4 rounded-xl transition-all text-left"
+                    style={sitesBilling === "monthly"
+                      ? { background: "rgba(0,188,212,0.1)", border: "1.5px solid rgba(0,188,212,0.5)" }
+                      : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  >
+                    <div className="text-[10px] font-mono text-muted/50 uppercase tracking-wider mb-1">Havi</div>
+                    <div className="font-display font-bold text-xl text-white">{sitesMonthly.toLocaleString("hu-HU")}</div>
+                    <div className="text-[11px] font-bold text-white"> HUF<span className="text-muted/50 font-normal">/hó</span></div>
+                    <div className="text-[10px] text-muted/40 mt-1">≈5.05 EUR/hó</div>
+                  </button>
+                  <button
+                    onClick={() => setSitesBilling("yearly")}
+                    className="flex-1 p-4 rounded-xl transition-all text-left relative"
+                    style={sitesBilling === "yearly"
+                      ? { background: "rgba(0,188,212,0.1)", border: "1.5px solid rgba(0,188,212,0.5)" }
+                      : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-mono text-muted/50 uppercase tracking-wider">Évi</span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(0,188,212,0.2)", color: "#00bcd4" }}>-17%</span>
+                    </div>
+                    <div className="font-display font-bold text-xl text-white">{sitesYearly.toLocaleString("hu-HU")}</div>
+                    <div className="text-[11px] font-bold text-white"> HUF<span className="text-muted/50 font-normal">/év</span></div>
+                    <div className="text-[10px] text-muted/40 mt-1">≈50.51 EUR/év</div>
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {["Egyedi .hu domain", "Korlátlan webhely", "10 GB tárhely", "SSL + CDN", "Analitika", "Prioritás hosting"].map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-white/60" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <CheckCircle2 size={10} className="text-[#00bcd4] shrink-0" /> {f}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Domain input */}
+                <div>
+                  <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-2">Domain nevem</div>
+                  <div className="flex items-center rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.1)", background: "#10101f" }}>
+                    <input
+                      value={domain}
+                      onChange={e => setDomain(e.target.value.replace(/[^a-zA-Z0-9-]/g, "").toLowerCase())}
+                      placeholder="yoursite"
+                      className="flex-1 px-3 py-2.5 text-sm text-white bg-transparent focus:outline-none"
+                    />
+                    <div className="px-3 py-2.5 text-sm font-mono font-bold shrink-0" style={{ color: sitesBilling === "yearly" ? "#00bcd4" : "rgba(255,255,255,0.5)", background: "rgba(0,188,212,0.08)" }}>
+                      {sitesBilling === "yearly" ? ".hu" : ".cortex.app"}
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-muted/40 mt-1.5 font-mono">
+                    {domain ? `Előnézet: ${domain}${sitesBilling === "yearly" ? ".hu" : ".cortex.app"}` : "Írj be egy nevet az előnézethez"}
+                  </div>
+                </div>
+
+                {/* CTA */}
+                <button
+                  className="w-full py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all"
+                  style={{ background: domain ? "linear-gradient(135deg,#00bcd4,#006064)" : "rgba(255,255,255,0.05)", color: domain ? "#fff" : "rgba(255,255,255,0.3)", cursor: domain ? "pointer" : "not-allowed" }}
+                >
+                  <Globe size={15} /> {domain ? `Foglalás — előbb add meg a nevet` : "Előbb add meg a domain nevet"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
