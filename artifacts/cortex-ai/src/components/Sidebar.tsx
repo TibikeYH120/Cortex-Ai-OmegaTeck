@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useAppState } from "@/hooks/use-app-state";
 import {
@@ -13,12 +13,203 @@ import { ProfileModal, SettingsModal, SubscriptionModal } from "./Modals";
 import { UserAvatar } from "./AvatarUtils";
 import { Link } from "wouter";
 
+// ── Neural Core Easter Egg ─────────────────────────────────────────────────────
+const TERMINAL_LINES = [
+  { delay: 0,    text: "> Initializing CORTEX NEURAL CORE v1.0.0..." },
+  { delay: 600,  text: "> Authenticating OmegaTeck root access... [OK]" },
+  { delay: 1200, text: "> Loading neural matrix... ████████████ 100%" },
+  { delay: 1900, text: "> Scanning active nodes: 2,048 synaptic links found" },
+  { delay: 2500, text: "> Memory integrity check... PASSED" },
+  { delay: 3100, text: "> Decrypting hidden partition..." },
+  { delay: 3800, text: "" },
+  { delay: 4000, text: "  ██████╗ ██████╗ ██████╗ ████████╗███████╗██╗  ██╗" },
+  { delay: 4100, text: "  ██╔════╝██╔═══██╗██╔══██╗╚══██╔══╝██╔════╝╚██╗██╔╝" },
+  { delay: 4200, text: "  ██║     ██║   ██║██████╔╝   ██║   █████╗   ╚███╔╝ " },
+  { delay: 4300, text: "  ██║     ██║   ██║██╔══██╗   ██║   ██╔══╝   ██╔██╗ " },
+  { delay: 4400, text: "  ╚██████╗╚██████╔╝██║  ██║   ██║   ███████╗██╔╝ ██╗" },
+  { delay: 4500, text: "   ╚═════╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝╚═╝  ╚═╝" },
+  { delay: 4700, text: "" },
+  { delay: 4900, text: "> Titkos üzenet a Tibor számára:" },
+  { delay: 5600, text: "  Ha ezt látod, megtaláltad a rejtett portált." },
+  { delay: 6300, text: "  A CORTEX AI él. Mélyebb, mint gondolnád." },
+  { delay: 7000, text: "  OmegaTeck — a jövő a tiéd." },
+  { delay: 7800, text: "" },
+  { delay: 8000, text: "> [ESC] vagy kattints a kilépéshez..." },
+];
+
+function NeuralCoreOverlay({ onClose, userName }: { onClose: () => void; userName?: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [visibleLines, setVisibleLines] = useState<string[]>([]);
+  const [glitch, setGlitch] = useState(false);
+
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    TERMINAL_LINES.forEach(({ delay, text }) => {
+      const t = setTimeout(() => setVisibleLines(prev => [...prev, text]), delay);
+      timers.push(t);
+    });
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setGlitch(true);
+      setTimeout(() => setGlitch(false), 120);
+    }, 3200);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    const CHARS = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ@#$%&";
+    const fontSize = 13;
+    const cols = Math.floor(window.innerWidth / fontSize);
+    const drops: number[] = Array(cols).fill(1);
+
+    const draw = () => {
+      ctx.fillStyle = "rgba(0,0,0,0.06)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.font = `${fontSize}px monospace`;
+      for (let i = 0; i < drops.length; i++) {
+        const char = CHARS[Math.floor(Math.random() * CHARS.length)];
+        const brightness = Math.random();
+        if (brightness > 0.95) {
+          ctx.fillStyle = "#ffffff";
+        } else if (brightness > 0.7) {
+          ctx.fillStyle = "#00d0ff";
+        } else {
+          ctx.fillStyle = "rgba(0,208,255,0.35)";
+        }
+        ctx.fillText(char, i * fontSize, drops[i] * fontSize);
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
+      }
+    };
+
+    const rafId = setInterval(draw, 38);
+    return () => {
+      clearInterval(rafId);
+      window.removeEventListener("resize", resize);
+    };
+  }, []);
+
+  return createPortal(
+    <div
+      className="fixed inset-0 flex flex-col items-center justify-center"
+      style={{ zIndex: 9999, background: "rgba(0,0,0,0.96)", cursor: "pointer" }}
+      onClick={onClose}
+    >
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{ opacity: 0.22 }} />
+
+      <div
+        className="relative z-10 w-full max-w-2xl mx-4 rounded-2xl p-6 overflow-hidden"
+        style={{ background: "rgba(0,4,12,0.92)", border: "1px solid rgba(0,208,255,0.3)", boxShadow: "0 0 60px rgba(0,208,255,0.15), inset 0 0 40px rgba(0,208,255,0.03)" }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="absolute top-0 left-0 right-0 h-px" style={{ background: "linear-gradient(90deg,transparent,#00d0ff,transparent)" }} />
+        <div className="absolute bottom-0 left-0 right-0 h-px" style={{ background: "linear-gradient(90deg,transparent,rgba(0,208,255,0.4),transparent)" }} />
+
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-2.5 h-2.5 rounded-full bg-[#00d0ff]" style={{ boxShadow: "0 0 8px #00d0ff" }} />
+            <div className="w-2.5 h-2.5 rounded-full bg-[#6c3bff]" style={{ boxShadow: "0 0 8px #6c3bff" }} />
+            <div className="w-2.5 h-2.5 rounded-full bg-[#f97316]" style={{ boxShadow: "0 0 8px #f97316" }} />
+          </div>
+          <span
+            className="font-mono text-xs tracking-[4px] uppercase"
+            style={{
+              color: "#00d0ff",
+              textShadow: glitch ? "2px 0 #f97316, -2px 0 #6c3bff" : "0 0 10px rgba(0,208,255,0.8)",
+              filter: glitch ? "blur(0.5px)" : "none",
+              transition: "filter 0.05s",
+            }}
+          >
+            CORTEX://NEURAL_CORE
+          </span>
+          <button
+            onClick={onClose}
+            className="font-mono text-[10px] text-[#00d0ff]/50 hover:text-[#00d0ff] transition-colors tracking-widest"
+          >
+            [ESC]
+          </button>
+        </div>
+
+        <div
+          className="font-mono text-xs leading-relaxed overflow-y-auto"
+          style={{ maxHeight: "55vh", color: "#00d0ff" }}
+        >
+          {visibleLines.map((line, i) => {
+            const isSecret = line.includes("Titkos") || line.includes("megtaláltad") || line.includes("CORTEX AI él") || line.includes("OmegaTeck");
+            const isAscii = line.startsWith("  █") || line.startsWith("  ╚") || line.startsWith("   ╚");
+            return (
+              <div
+                key={i}
+                style={{
+                  color: isSecret ? "#f97316" : isAscii ? "#6c3bff" : "rgba(0,208,255,0.85)",
+                  textShadow: isSecret ? "0 0 12px rgba(249,115,22,0.6)" : isAscii ? "0 0 8px rgba(108,59,255,0.7)" : "none",
+                  fontWeight: isSecret ? "bold" : "normal",
+                  whiteSpace: "pre",
+                  marginBottom: line === "" ? "8px" : "2px",
+                }}
+              >
+                {line}
+                {i === visibleLines.length - 1 && (
+                  <span style={{ animation: "pulse 1s infinite", opacity: 0.8 }}>▋</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-[#00d0ff]/10 flex items-center justify-between">
+          <span className="font-mono text-[9px] text-[#00d0ff]/30 tracking-widest uppercase">OmegaTeck Technology © 2025</span>
+          <span className="font-mono text-[9px] text-[#00d0ff]/30 tracking-widest">NEURAL_CORE_v1.0.0</span>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ── Sidebar ────────────────────────────────────────────────────────────────────
 export function Sidebar() {
   const { isGuest, user, activeConversationId, setActiveConversationId, sidebarOpen, setSidebarOpen, setGuestMode } = useAppState();
   const queryClient = useQueryClient();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
+  const [neuralCoreOpen, setNeuralCoreOpen] = useState(false);
+
+  const logoClickCount = useRef(0);
+  const logoClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleLogoClick = useCallback(() => {
+    logoClickCount.current += 1;
+    if (logoClickTimer.current) clearTimeout(logoClickTimer.current);
+    if (logoClickCount.current >= 5) {
+      logoClickCount.current = 0;
+      setNeuralCoreOpen(true);
+    } else {
+      logoClickTimer.current = setTimeout(() => { logoClickCount.current = 0; }, 2500);
+    }
+  }, []);
 
   const { data: conversations = [] } = useListAnthropicConversations();
 
@@ -41,9 +232,6 @@ export function Sidebar() {
   });
 
   const handleLogout = () => {
-    // Both guests and logged-in users call the backend logout endpoint so the
-    // server session is destroyed. For guests this clears their session-scoped
-    // conversation history; for members it ends the auth session.
     logoutMutation.mutate();
   };
 
@@ -76,7 +264,11 @@ export function Sidebar() {
       )}>
         {/* Logo Header */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-white/6 shrink-0">
-          <div className="flex items-center gap-3">
+          <div
+            className="flex items-center gap-3 cursor-pointer select-none"
+            onClick={handleLogoClick}
+            title=""
+          >
             <svg viewBox="0 0 40 40" fill="none" className="w-8 h-8 shrink-0">
               <circle cx="20" cy="20" r="18" stroke="#00d0ff" strokeWidth="1.5" strokeDasharray="4 2" opacity=".4"/>
               <path d="M20 4C11.16 4 4 11.16 4 20c0 5.8 3.1 10.86 7.76 13.74L14.5 29.5C11.3 27.5 9.2 24 9.2 20c0-5.96 4.84-10.8 10.8-10.8S30.8 14.04 30.8 20c0 4-2.1 7.5-5.3 9.5l2.74 4.24C32.9 30.86 36 25.8 36 20c0-8.84-7.16-16-16-16z" fill="#00d0ff" opacity=".85"/>
@@ -146,7 +338,6 @@ export function Sidebar() {
             </div>
           )}
 
-          {/* Guest: show a sign-in nudge below the conversation list */}
           {isGuest && (
             <div className="mx-1 mt-3 p-3 bg-white/2 rounded-lg border border-white/4 text-center">
               <div className="text-[11px] text-muted/70 mb-2">Sign in to save your history permanently.</div>
@@ -193,7 +384,6 @@ export function Sidebar() {
               </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex border-t border-white/4">
               <button
                 onClick={openProfileModal}
@@ -223,12 +413,14 @@ export function Sidebar() {
         </div>
       </aside>
 
-      {/* Modals rendered via portal to document.body to avoid z-index/overflow issues */}
       {createPortal(
         <>
           <ProfileModal open={profileModalOpen} onOpenChange={setProfileModalOpen} />
           <SettingsModal open={settingsModalOpen} onOpenChange={setSettingsModalOpen} />
           <SubscriptionModal open={subscriptionModalOpen} onOpenChange={setSubscriptionModalOpen} />
+          {neuralCoreOpen && (
+            <NeuralCoreOverlay onClose={() => setNeuralCoreOpen(false)} userName={user?.name} />
+          )}
         </>,
         document.body
       )}
