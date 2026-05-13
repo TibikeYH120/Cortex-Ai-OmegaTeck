@@ -4,7 +4,7 @@ import {
   X, Save, ShieldAlert, User, Cpu, Wifi, Lock, BarChart3,
   Eye, EyeOff, CheckCircle2, AlertCircle, MessageSquare, Zap, Shield,
   Info, Globe, Volume2, Palette, Key, Mic, Play, Square, Loader2, BookOpen,
-  Infinity, Image, Star, CreditCard, Search, Sparkles
+  Infinity, Image, Star, CreditCard, Search, Sparkles, Copy, Building2
 } from "lucide-react";
 import { useGetProfile, useUpdateProfile, getGetProfileQueryKey, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useAppState } from "@/hooks/use-app-state";
@@ -969,6 +969,7 @@ export function SubscriptionModal({ open, onOpenChange }: ModalProps) {
   const [promoApplied, setPromoApplied] = useState<{ label: string; desc: string } | null>(null);
   const [promoError, setPromoError] = useState("");
   const [domain, setDomain] = useState("");
+  const [ibanCopied, setIbanCopied] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -1148,13 +1149,52 @@ export function SubscriptionModal({ open, onOpenChange }: ModalProps) {
                   Ingyenes: 10 üzenet/nap &nbsp;·&nbsp; Vendég: 5 üzenet/nap
                 </div>
 
-                {/* CTA */}
-                <button
-                  className="w-full py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-opacity hover:opacity-90"
-                  style={{ background: "linear-gradient(135deg,#f97316,#c2410c)", color: "#fff" }}
-                >
-                  <CreditCard size={15} /> Hamarosan elérhető a fizetés
-                </button>
+                {/* Bank transfer section */}
+                <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(249,115,22,0.25)", background: "rgba(249,115,22,0.04)" }}>
+                  <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: "rgba(249,115,22,0.15)" }}>
+                    <Building2 size={14} className="text-[#f97316]" />
+                    <span className="text-xs font-bold text-white/80 uppercase tracking-wider">Banki átutalás</span>
+                  </div>
+                  <div className="px-4 py-3 space-y-3">
+                    <div>
+                      <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-1.5">IBAN szám</div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 px-3 py-2 rounded-lg font-mono text-sm text-white tracking-widest select-all" style={{ background: "#10101f", border: "1px solid rgba(255,255,255,0.08)" }}>
+                          LT28 3250 0762 8251 4428
+                        </div>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText("LT283250076282514428");
+                            setIbanCopied(true);
+                            setTimeout(() => setIbanCopied(false), 2000);
+                          }}
+                          className="px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shrink-0"
+                          style={ibanCopied
+                            ? { background: "rgba(0,255,136,0.12)", color: "#00ff88", border: "1px solid rgba(0,255,136,0.3)" }
+                            : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)" }}
+                        >
+                          {ibanCopied ? <><CheckCircle2 size={11} /> Másolva</> : <><Copy size={11} /> Másolás</>}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-1">Összeg</div>
+                        <div className="text-sm font-bold text-white">
+                          {billing === "monthly" ? `${monthlyHUF.toLocaleString("hu-HU")} HUF` : `${yearlyHUF.toLocaleString("hu-HU")} HUF`}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-mono text-muted/50 uppercase tracking-widest mb-1">Megjegyzés</div>
+                        <div className="text-sm font-bold text-white font-mono">CortexPlus</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg text-xs text-white/50" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <AlertCircle size={12} className="text-[#f97316] shrink-0 mt-0.5" />
+                      Az átutalás után küldj emailt a <span className="text-[#f97316] mx-1">support@omegateck.hu</span> címre, és 24 órán belül aktiváljuk a Plus csomagod.
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
