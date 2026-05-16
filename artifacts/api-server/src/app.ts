@@ -68,15 +68,9 @@ app.use(session({
   },
 }));
 
-// Expose the real visitor IP from Cloudflare's CF-Connecting-IP header.
-// Falls back to the standard X-Forwarded-For chain set by other proxies.
-app.use((req, _res, next) => {
-  const cfIp = req.headers["cf-connecting-ip"];
-  if (cfIp && typeof cfIp === "string") {
-    req.socket.remoteAddress = cfIp;
-  }
-  next();
-});
+// Cloudflare sets CF-Connecting-IP; expose it via req.headers so downstream
+// code can read the real visitor IP regardless of the proxy chain.
+// req.ip is already correct because trust proxy is enabled above.
 
 app.use("/api", router);
 

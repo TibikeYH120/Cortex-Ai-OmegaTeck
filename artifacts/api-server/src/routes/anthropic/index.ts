@@ -489,7 +489,7 @@ router.post("/conversations", async (req: Request, res: Response) => {
         : { title, guestSessionId: owner.sessionId };
 
     if (owner.type === "guest") {
-      (req.session as Record<string, unknown>).guestMode = true;
+      (req.session as unknown as Record<string, unknown>).guestMode = true;
       await new Promise<void>((resolve, reject) =>
         req.session.save(err => (err ? reject(err) : resolve()))
       );
@@ -504,7 +504,7 @@ router.post("/conversations", async (req: Request, res: Response) => {
 });
 
 router.get("/conversations/:id", async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
   try {
     const [conv] = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
@@ -526,7 +526,7 @@ router.get("/conversations/:id", async (req: Request, res: Response) => {
 });
 
 router.delete("/conversations/:id", async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
   try {
     const [conv] = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
@@ -542,7 +542,7 @@ router.delete("/conversations/:id", async (req: Request, res: Response) => {
 });
 
 router.get("/conversations/:id/messages", async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
   try {
     const [conv] = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
@@ -563,7 +563,7 @@ router.get("/conversations/:id/messages", async (req: Request, res: Response) =>
 // ── Message endpoint ──────────────────────────────────────────────────────────
 
 router.post("/conversations/:id/messages", async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
   const { content, imageAttachment, imageAttachments: rawImageAttachments, systemAbout: guestAbout, systemRespond: guestRespond, cortexModel } = req.body as {

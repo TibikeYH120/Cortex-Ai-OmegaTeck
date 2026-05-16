@@ -16,6 +16,8 @@ import type {
   UseQueryResult,
 } from "@tanstack/react-query";
 
+type OptionalQueryOptions<TData, TError, TRes> = Omit<UseQueryOptions<TData, TError, TRes>, "queryKey"> & { queryKey?: QueryKey };
+
 import type {
   AnthropicConversation,
   AnthropicConversationWithMessages,
@@ -67,7 +69,7 @@ export const getHealthCheckQueryOptions = <
   TData = Awaited<ReturnType<typeof healthCheck>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: OptionalQueryOptions<
     Awaited<ReturnType<typeof healthCheck>>,
     TError,
     TData
@@ -102,7 +104,7 @@ export function useHealthCheck<
   TData = Awaited<ReturnType<typeof healthCheck>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: OptionalQueryOptions<
     Awaited<ReturnType<typeof healthCheck>>,
     TError,
     TData
@@ -312,7 +314,7 @@ export const getGetMeQueryOptions = <
   TData = Awaited<ReturnType<typeof getMe>>,
   TError = ErrorType<ErrorResponse>,
 >(options?: {
-  query?: UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>;
+  query?: OptionalQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>;
   request?: SecondParameter<typeof customFetch>;
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
@@ -341,7 +343,7 @@ export function useGetMe<
   TData = Awaited<ReturnType<typeof getMe>>,
   TError = ErrorType<ErrorResponse>,
 >(options?: {
-  query?: UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>;
+  query?: OptionalQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>;
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetMeQueryOptions(options);
@@ -458,7 +460,7 @@ export const getGetProfileQueryOptions = <
   TData = Awaited<ReturnType<typeof getProfile>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: OptionalQueryOptions<
     Awaited<ReturnType<typeof getProfile>>,
     TError,
     TData
@@ -493,7 +495,7 @@ export function useGetProfile<
   TData = Awaited<ReturnType<typeof getProfile>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: OptionalQueryOptions<
     Awaited<ReturnType<typeof getProfile>>,
     TError,
     TData
@@ -622,7 +624,7 @@ export const getListAnthropicConversationsQueryOptions = <
   TData = Awaited<ReturnType<typeof listAnthropicConversations>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: OptionalQueryOptions<
     Awaited<ReturnType<typeof listAnthropicConversations>>,
     TError,
     TData
@@ -658,7 +660,7 @@ export function useListAnthropicConversations<
   TData = Awaited<ReturnType<typeof listAnthropicConversations>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: OptionalQueryOptions<
     Awaited<ReturnType<typeof listAnthropicConversations>>,
     TError,
     TData
@@ -794,7 +796,7 @@ export const getGetAnthropicConversationQueryOptions = <
 >(
   id: number,
   options?: {
-    query?: UseQueryOptions<
+    query?: OptionalQueryOptions<
       Awaited<ReturnType<typeof getAnthropicConversation>>,
       TError,
       TData
@@ -839,7 +841,7 @@ export function useGetAnthropicConversation<
 >(
   id: number,
   options?: {
-    query?: UseQueryOptions<
+    query?: OptionalQueryOptions<
       Awaited<ReturnType<typeof getAnthropicConversation>>,
       TError,
       TData
@@ -968,7 +970,7 @@ export const getListAnthropicMessagesQueryOptions = <
 >(
   id: number,
   options?: {
-    query?: UseQueryOptions<
+    query?: OptionalQueryOptions<
       Awaited<ReturnType<typeof listAnthropicMessages>>,
       TError,
       TData
@@ -1012,7 +1014,7 @@ export function useListAnthropicMessages<
 >(
   id: number,
   options?: {
-    query?: UseQueryOptions<
+    query?: OptionalQueryOptions<
       Awaited<ReturnType<typeof listAnthropicMessages>>,
       TError,
       TData

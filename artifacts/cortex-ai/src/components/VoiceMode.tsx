@@ -204,7 +204,7 @@ export function VoiceMode({ onClose }: VoiceModeProps) {
   const rafRef         = useRef<number | null>(null);
   const frameCountRef  = useRef(0);
   const elemSrcRef     = useRef<MediaElementAudioSourceNode | null>(null);
-  const fftDataRef     = useRef<Uint8Array>(new Uint8Array(32));
+  const fftDataRef     = useRef<Uint8Array<ArrayBuffer>>(new Uint8Array(32) as Uint8Array<ArrayBuffer>);
 
   /* Keep voiceStateRef in sync without extra renders */
   const setVS = useCallback((s: VoiceState) => {
