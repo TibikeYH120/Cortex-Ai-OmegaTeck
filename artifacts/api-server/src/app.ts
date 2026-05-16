@@ -12,10 +12,10 @@ const PgStore = connectPgSimple(session);
 
 const app: Express = express();
 
-// Trust the first proxy so Railway's TLS termination is respected.
-// Without this, express-session's secure cookies are never set because
-// req.secure is false behind the proxy even though the connection is HTTPS.
-app.set("trust proxy", 1);
+// Trust all proxies — required for Cloudflare + Replit layered proxies.
+// This ensures req.secure is true behind TLS-terminating proxies (Cloudflare,
+// Railway, Replit) and that X-Forwarded-For / CF-Connecting-IP are respected.
+app.set("trust proxy", true);
 
 app.use(
   pinoHttp({
@@ -62,8 +62,21 @@ app.use(session({
     secure: process.env.NODE_ENV === "production",
     httpOnly: true,
     maxAge: 7 * 24 * 60 * 60 * 1000,
+    // "lax" works correctly behind Cloudflare — allows cookies on top-level
+    // navigations (links) while still blocking cross-site POST forgery.
+    sameSite: "lax",
   },
 }));
+
+// Expose the real visitor IP from Cloudflare's CF-Connecting-IP header.
+// Falls back to the standard X-Forwarded-For chain set by other proxies.
+app.use((req, _res, next) => {
+  const cfIp = req.headers["cf-connecting-ip"];
+  if (cfIp && typeof cfIp === "string") {
+    req.socket.remoteAddress = cfIp;
+  }
+  next();
+});
 
 app.use("/api", router);
 

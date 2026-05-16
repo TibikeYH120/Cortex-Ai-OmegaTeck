@@ -7,6 +7,13 @@ import { AppStateProvider } from "@/hooks/use-app-state";
 import { Home } from "@/pages/Home";
 import { Pricing } from "@/pages/Pricing";
 import NotFound from "@/pages/not-found";
+import { setBaseUrl } from "@workspace/api-client-react";
+
+// If VITE_API_URL is set (e.g. to the Replit deployment URL or a custom domain),
+// all API calls will be prefixed with that base URL instead of using relative paths.
+// Leave unset to use relative /api/... paths (recommended for same-origin deploys).
+const apiUrl = import.meta.env.VITE_API_URL as string | undefined;
+if (apiUrl) setBaseUrl(apiUrl);
 
 const queryClient = new QueryClient();
 
