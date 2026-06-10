@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppStateProvider } from "@/hooks/use-app-state";
 import { Home } from "@/pages/Home";
 import { Pricing } from "@/pages/Pricing";
+import { Admin } from "@/pages/Admin";
 import NotFound from "@/pages/not-found";
 import { setBaseUrl } from "@workspace/api-client-react";
 
@@ -22,6 +23,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/pricing" component={Pricing} />
+      <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>
   );
