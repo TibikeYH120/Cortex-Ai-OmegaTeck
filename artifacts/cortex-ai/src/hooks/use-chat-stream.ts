@@ -30,6 +30,9 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
   const [isSearching, setIsSearching] = useState(false);
   // Live char counter shown during silent buffering (small outputs only)
   const [generatingCharCount, setGeneratingCharCount] = useState(0);
+  // Daily limit tracking — updated after every successful message
+  const [dailyRemaining, setDailyRemaining] = useState<number | null>(null);
+  const [dailyResetAt, setDailyResetAt] = useState<string | null>(null);
 
   const charCountRef = useRef(0);
   const charCountIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -138,7 +141,13 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
 
       if (response.status === 429) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.message || "Elérted a napi üzenetkorlátot. Próbáld újra holnap, vagy válts Cortex Plus-ra!");
+        const resetAt: string | undefined = errData.resetAt;
+        let resetMsg = "";
+        if (resetAt) {
+          const resetDate = new Date(resetAt);
+          resetMsg = ` Visszaáll ${resetDate.toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" })}-kor.`;
+        }
+        throw new Error((errData.message || "Elérted a napi üzenetkorlátot.") + resetMsg + " Válts Cortex Plus-ra a korlátlan használathoz!");
       }
       if (!response.ok) throw new Error("Network error while sending message.");
       if (!response.body) throw new Error("Empty response from server.");
@@ -181,6 +190,8 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
 
               if (data.done) {
                 usedSearch = data.usedSearch ?? false;
+                if (typeof data.remaining === "number") setDailyRemaining(data.remaining);
+                if (typeof data.resetAt === "string") setDailyResetAt(data.resetAt);
                 break;
               }
 
@@ -325,5 +336,7 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
     isGeneratingImage,
     isSearching,
     generatingCharCount,
+    dailyRemaining,
+    dailyResetAt,
   };
 }

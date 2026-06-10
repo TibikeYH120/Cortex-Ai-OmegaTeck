@@ -81,7 +81,7 @@ export function ChatArea() {
   // and cleared in a useEffect after the render — avoiding render-phase side effects.
   const lastStreamedIdRef = useRef<number | null>(null);
 
-  const { sendMessage, isStreaming, isGenerating, streamingContent, stopStream, isGeneratingImage, isSearching, generatingCharCount } = useChatStream({
+  const { sendMessage, isStreaming, isGenerating, streamingContent, stopStream, isGeneratingImage, isSearching, generatingCharCount, dailyRemaining, dailyResetAt } = useChatStream({
     conversationId: activeConversationId,
     onFinished: (fullContent, usedSearch, sources) => {
       if (fullContent) {
@@ -634,9 +634,22 @@ export function ChatArea() {
               </button>
             </div>
           </div>
-          <div className="mt-2 hidden sm:flex justify-between items-center px-2">
-            <span className="font-mono text-[10px] text-muted/60 tracking-wide">ENTER = send &nbsp;·&nbsp; SHIFT+ENTER = new line</span>
-            <ActiveModelBadge />
+          <div className="mt-2 flex justify-between items-center px-2">
+            <span className="font-mono text-[10px] text-muted/60 tracking-wide hidden sm:block">ENTER = send &nbsp;·&nbsp; SHIFT+ENTER = new line</span>
+            <div className="flex items-center gap-3 ml-auto">
+              {dailyRemaining !== null && dailyRemaining <= 15 && (
+                <span className={cn(
+                  "font-mono text-[10px] tracking-wide",
+                  dailyRemaining <= 5 ? "text-destructive/80" : dailyRemaining <= 10 ? "text-[#f97316]/70" : "text-muted/60"
+                )}>
+                  {dailyRemaining === 0
+                    ? `Elfogyott a napi limit${dailyResetAt ? ` · Visszaáll ${new Date(dailyResetAt).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" })}-kor` : ""}`
+                    : `${dailyRemaining} üzenet maradt ma${dailyResetAt ? ` · éjfél ${new Date(dailyResetAt).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" })}` : ""}`
+                  }
+                </span>
+              )}
+              <ActiveModelBadge />
+            </div>
           </div>
         </div>
       </div>

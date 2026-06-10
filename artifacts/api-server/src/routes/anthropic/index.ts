@@ -673,8 +673,16 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
     parsedAttachments.push({ mediaType: matches[1] as AllowedMediaType, base64Data: matches[3] });
   }
 
-  const DAILY_MEMBER_LIMIT = 10;
-  const DAILY_GUEST_LIMIT = 5;
+  const DAILY_MEMBER_LIMIT = 50;
+  const DAILY_GUEST_LIMIT = 20;
+
+  // Midnight (local server time) — when the daily counter resets
+  const midnight = new Date();
+  midnight.setHours(24, 0, 0, 0);
+  const resetAt = midnight.toISOString();
+
+  // Tracks how many messages remain after this one (sent to the client in the done event)
+  let dailyRemaining: number | null = null;
 
   try {
     const [conv] = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
@@ -712,12 +720,15 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
         if (todayCount >= DAILY_MEMBER_LIMIT) {
           res.status(429).json({
             error: "DAILY_LIMIT_REACHED",
-            message: `Elérted a napi ${DAILY_MEMBER_LIMIT} üzenetes korlátot. Frissül éjfélkor, vagy válts Cortex Plus-ra a korlátlan használathoz!`,
+            message: `Elérted a napi ${DAILY_MEMBER_LIMIT} üzenetes korlátot.`,
             limit: DAILY_MEMBER_LIMIT,
             used: todayCount,
+            resetAt,
           });
           return;
         }
+        // remaining AFTER this message is sent (todayCount doesn't include the current one yet)
+        dailyRemaining = DAILY_MEMBER_LIMIT - (Number(todayCount) + 1);
       }
     } else {
       // Guest daily limit based on session
@@ -735,12 +746,14 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
       if (guestCount >= DAILY_GUEST_LIMIT) {
         res.status(429).json({
           error: "DAILY_LIMIT_REACHED",
-          message: `Vendégként napi ${DAILY_GUEST_LIMIT} üzenetet küldhetsz. Regisztrálj ingyenesen a több üzenetért, vagy válts Cortex Plus-ra a korlátlan használathoz!`,
+          message: `Vendégként napi ${DAILY_GUEST_LIMIT} üzenetet küldhetsz.`,
           limit: DAILY_GUEST_LIMIT,
           used: guestCount,
+          resetAt,
         });
         return;
       }
+      dailyRemaining = DAILY_GUEST_LIMIT - (Number(guestCount) + 1);
       systemAbout = typeof guestAbout === "string" ? guestAbout.trim().slice(0, 500) || null : null;
       systemRespond = typeof guestRespond === "string" ? guestRespond.trim().slice(0, 500) || null : null;
     }
@@ -823,7 +836,12 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
       sseWrite(res, { sources });
     }
 
-    sseWrite(res, { done: true, usedSearch });
+    const donePayload: Record<string, unknown> = { done: true, usedSearch };
+    if (dailyRemaining !== null) {
+      donePayload.remaining = dailyRemaining;
+      donePayload.resetAt = resetAt;
+    }
+    sseWrite(res, donePayload);
     res.end();
   } catch (err) {
     req.log.error({ err }, "Send message error");
