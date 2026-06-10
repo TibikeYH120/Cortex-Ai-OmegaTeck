@@ -550,7 +550,7 @@ export function ChatArea() {
             )}
           </AnimatePresence>
 
-          <div className="relative flex items-end bg-s2 border border-border rounded-2xl overflow-hidden focus-within:border-border2 focus-within:shadow-[0_0_0_3px_rgba(0,208,255,0.05),_0_0_20px_rgba(0,208,255,0.08)] transition-all">
+          <div className="relative flex items-end glass-input rounded-2xl overflow-hidden focus-within:border-primary/30 focus-within:shadow-[0_0_0_3px_rgba(0,208,255,0.07),_0_0_28px_rgba(0,208,255,0.12)] transition-all duration-200">
             {/* Left buttons: Paperclip + Mic */}
             <div className="p-1.5 pl-2 sm:p-2 sm:pl-3 flex items-center gap-0.5 sm:gap-1 shrink-0">
               <input
@@ -705,6 +705,54 @@ function SourcesPanel({ sources }: { sources: WebSearchSource[] }) {
   );
 }
 
+// ── Thinking indicator ─────────────────────────────────────────────────────────
+
+const THINKING_LABELS = ["Thinking…", "Analyzing…", "Processing…", "Synthesizing…"];
+
+function ThinkingIndicator({ charCount = 0 }: { charCount?: number }) {
+  const [labelIdx, setLabelIdx] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setLabelIdx(i => (i + 1) % THINKING_LABELS.length), 1800);
+    return () => clearInterval(t);
+  }, []);
+
+  const bars = [0.4, 0.7, 1.0, 0.7, 0.4, 0.6, 0.9, 0.5, 0.8, 0.3];
+  const delays = [0, 160, 320, 480, 640, 200, 400, 100, 500, 280];
+
+  return (
+    <div className="flex flex-col gap-2.5 py-1 min-w-[180px]">
+      <div className="flex items-center gap-3">
+        {/* Brainwave bars */}
+        <div className="flex items-center gap-[3px] h-6 shrink-0">
+          {bars.map((maxH, i) => (
+            <span
+              key={i}
+              className="inline-block w-[3px] rounded-full bg-primary origin-bottom"
+              style={{
+                height: `${Math.round(maxH * 20)}px`,
+                animation: `wave-bar ${600 + i * 40}ms ease-in-out infinite`,
+                animationDelay: `${delays[i]}ms`,
+              }}
+            />
+          ))}
+        </div>
+        <div>
+          <div className="font-mono text-[11px] text-primary tracking-[0.18em] uppercase">
+            {THINKING_LABELS[labelIdx]}
+          </div>
+          {charCount > 0 && (
+            <div className="text-[10px] text-muted/50 font-mono mt-0.5 tabular-nums">
+              {charCount.toLocaleString()} chars
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="h-px bg-gradient-to-r from-primary/40 via-secondary/30 to-transparent animate-pulse" />
+    </div>
+  );
+}
+
 // ── Message bubble ─────────────────────────────────────────────────────────────
 
 const MessageBubble = memo(function MessageBubble({
@@ -838,8 +886,8 @@ const MessageBubble = memo(function MessageBubble({
         <div className={cn(
           "px-3 py-2.5 sm:px-5 sm:py-4 text-sm leading-relaxed relative",
           isAI
-            ? "bg-s2 border border-border rounded-2xl rounded-tl-sm text-foreground min-w-[60px]"
-            : "bg-gradient-to-br from-primary/5 to-secondary/5 border border-secondary/20 rounded-2xl rounded-tr-sm text-right"
+            ? "glass-ai rounded-2xl rounded-tl-sm text-foreground min-w-[60px]"
+            : "glass-user rounded-2xl rounded-tr-sm text-right"
         )}>
           {isGeneratingImage ? (
             <div className="flex flex-col gap-3 py-1 min-w-[200px]">
@@ -872,18 +920,7 @@ const MessageBubble = memo(function MessageBubble({
               <div className="h-px bg-gradient-to-r from-[#00d0ff]/30 via-[#6c3bff]/20 to-transparent animate-pulse" />
             </div>
           ) : isTyping ? (
-            <div className="flex flex-col gap-1.5 py-1">
-              <div className="flex gap-1.5 items-center">
-                <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
-              </div>
-              {generatingCharCount > 0 && (
-                <div className="text-[10px] font-mono text-muted/60 tabular-nums tracking-wide">
-                  {generatingCharCount.toLocaleString()} chars
-                </div>
-              )}
-            </div>
+            <ThinkingIndicator charCount={generatingCharCount} />
           ) : message.type === "image" && message.imageData ? (
             <div className="flex flex-col gap-3">
               <div className="font-mono text-[10px] text-primary/70 uppercase tracking-widest flex items-center gap-2">

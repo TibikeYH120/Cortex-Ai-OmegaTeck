@@ -81,8 +81,76 @@
   filter: blur(120px);
   z-index: 0;
   border-radius: 50%;
-  opacity: 0.15;
+  opacity: 0.22;
   pointer-events: none;
+  will-change: transform;
+}
+.cyber-blob:first-child {
+  animation: blob-drift-a 22s ease-in-out infinite;
+}
+.cyber-blob:last-child {
+  animation: blob-drift-b 26s ease-in-out infinite;
+}
+
+@keyframes blob-drift-a {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33%      { transform: translate(2%,1.5%) scale(1.06); }
+  66%      { transform: translate(-1%,2.5%) scale(0.96); }
+}
+@keyframes blob-drift-b {
+  0%,100% { transform: translate(0,0) scale(1); }
+  40%     { transform: translate(-2%,-1.5%) scale(1.04); }
+  70%     { transform: translate(1.5%,-2%) scale(0.98); }
+}
+
+/* Subtle scanlines */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.012) 2px,
+    rgba(0,0,0,0.012) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Glassmorphism utilities */
+.glass-ai {
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  background: rgba(0,208,255,0.04);
+  border: 1px solid rgba(0,208,255,0.13);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(0,208,255,0.06);
+}
+.glass-user {
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  background: rgba(108,59,255,0.07);
+  border: 1px solid rgba(108,59,255,0.22);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(108,59,255,0.08);
+}
+.glass-input {
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.glass-panel {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255,255,255,0.03);
+  border-right: 1px solid rgba(255,255,255,0.07);
+}
+
+/* Brainwave bars animation */
+@keyframes wave-bar {
+  0%,100% { transform: scaleY(0.25); opacity: 0.5; }
+  50%     { transform: scaleY(1);    opacity: 1;   }
 }
 
 /* Markdown — custom prose-cx class (replaces @tailwindcss/typography) */

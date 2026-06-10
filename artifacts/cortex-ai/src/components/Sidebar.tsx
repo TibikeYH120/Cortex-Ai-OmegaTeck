@@ -257,8 +257,7 @@ export function Sidebar() {
       )}
 
       <aside className={cn(
-        "fixed md:static inset-y-0 left-0 z-50 w-64 border-r border-white/6 flex flex-col",
-        "bg-[#06060f]",
+        "fixed md:static inset-y-0 left-0 z-50 w-64 flex flex-col glass-panel",
         "transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
         sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
       )}>
