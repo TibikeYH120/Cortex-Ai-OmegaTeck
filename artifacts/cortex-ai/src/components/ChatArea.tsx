@@ -391,7 +391,7 @@ export function ChatArea() {
       </header>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto scroll-smooth relative z-0">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth relative z-0">
         <div className="max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-8 lg:py-12 flex flex-col gap-4 sm:gap-6">
 
           <AnimatePresence mode="wait">
@@ -763,7 +763,7 @@ const MessageBubble = memo(function MessageBubble({
 
       {/* Content */}
       <div className={cn("max-w-[calc(100%-2.75rem)] sm:max-w-[calc(100%-3.5rem)] flex flex-col", !isAI && "items-end")}>
-        <div className={cn("flex items-center gap-2 mb-1.5", !isAI && "flex-row-reverse")}>
+        <div className={cn("flex items-center gap-x-2 gap-y-1 mb-1.5 flex-wrap", !isAI && "flex-row-reverse")}>
           <span className={cn("text-xs font-mono font-semibold", isAI ? "text-primary" : "text-secondary")}>
             {isAI ? "Cortex AI" : (user?.name || "You")}
           </span>
@@ -813,7 +813,7 @@ const MessageBubble = memo(function MessageBubble({
                   ) : (
                     <Volume2 size={13} />
                   )}
-                  <span>{isLoadingThisAudio ? "Loading…" : isThisPlaying ? "Stop" : "Read"}</span>
+                  <span className="hidden sm:inline">{isLoadingThisAudio ? "Loading…" : isThisPlaying ? "Stop" : "Read"}</span>
                 </button>
               )}
             </div>
@@ -918,7 +918,7 @@ const MessageBubble = memo(function MessageBubble({
               </a>
             </div>
           ) : (
-            <div className={cn(!isAI && "whitespace-pre-wrap")}>
+            <div className={cn(!isAI && "whitespace-pre-wrap break-words overflow-wrap-anywhere")}>
               {isAI ? (
                 <>
                   <MarkdownRenderer content={message.content} />

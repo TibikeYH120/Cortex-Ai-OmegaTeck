@@ -4,6 +4,10 @@ import { getGetAnthropicConversationQueryKey, getListAnthropicConversationsQuery
 
 const IMAGE_PATTERN = /\[GENERATE_IMAGE:\s*([\s\S]+?)\]/;
 
+// Large-output threshold: above this char count we skip the typewriter and
+// show content live during generation instead of buffering silently.
+const LIVE_STREAM_THRESHOLD = 2000;
+
 export interface WebSearchSource {
   url: string;
   title: string;
@@ -17,29 +21,37 @@ interface UseChatStreamProps {
 }
 
 export function useChatStream({ conversationId, onFinished, onImageGenerated, onError }: UseChatStreamProps) {
-  // Phase 1: server is actively streaming (we buffer silently — no text visible)
+  // Phase 1: server is actively streaming
   const [isGenerating, setIsGenerating] = useState(false);
-  // Phase 2: typewriter animation is playing (streamingContent fills smoothly)
+  // Phase 2: typewriter animation (only for small outputs)
   const [isTypewriting, setIsTypewriting] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  // Live char counter shown during the silent buffering phase
+  // Live char counter shown during silent buffering (small outputs only)
   const [generatingCharCount, setGeneratingCharCount] = useState(0);
+
   const charCountRef = useRef(0);
   const charCountIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isSearchingRef = useRef(false);
   const rafIdRef = useRef<number | null>(null);
+  // RAF handle for live streaming display (large outputs)
+  const liveRafRef = useRef<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Mutable snapshot of accumulated text, read inside RAF callbacks
+  const fullTextRef = useRef("");
   const queryClient = useQueryClient();
 
-  // isStreaming covers both phases for backward compat with ChatArea
   const isStreaming = isGenerating || isTypewriting;
 
   const cancelAnimation = useCallback(() => {
     if (rafIdRef.current !== null) {
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
+    }
+    if (liveRafRef.current !== null) {
+      cancelAnimationFrame(liveRafRef.current);
+      liveRafRef.current = null;
     }
   }, []);
 
@@ -69,6 +81,15 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
     rafIdRef.current = requestAnimationFrame(tick);
   }, []);
 
+  // Schedule a live RAF update for large-output streaming
+  const scheduleLiveUpdate = useCallback(() => {
+    if (liveRafRef.current !== null) return; // RAF already pending
+    liveRafRef.current = requestAnimationFrame(() => {
+      setStreamingContent(fullTextRef.current);
+      liveRafRef.current = null;
+    });
+  }, []);
+
   const sendMessage = async (content: string, overrideConvId?: number, imageAttachments?: string[]) => {
     const targetId = overrideConvId || conversationId;
     if (!targetId) {
@@ -83,10 +104,14 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
     setIsSearching(false);
     isSearchingRef.current = false;
     charCountRef.current = 0;
+    fullTextRef.current = "";
     setGeneratingCharCount(0);
+
+    // Char-count ticker — visible only for small outputs while buffering silently
     charCountIntervalRef.current = setInterval(() => {
       setGeneratingCharCount(charCountRef.current);
     }, 500);
+
     let fullText = "";
     let usedSearch = false;
     let sources: WebSearchSource[] = [];
@@ -149,6 +174,11 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
                 continue;
               }
 
+              // Auto-continuation from backend: keep generating state, no extra UI needed
+              if (data.continuing) {
+                continue;
+              }
+
               if (data.done) {
                 usedSearch = data.usedSearch ?? false;
                 break;
@@ -159,9 +189,14 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
                   isSearchingRef.current = false;
                   setIsSearching(false);
                 }
-                // Buffer silently — no state update during generation phase
                 fullText += data.content;
                 charCountRef.current = fullText.length;
+                fullTextRef.current = fullText;
+
+                // For large outputs: update the display live via RAF throttle
+                if (fullText.length > LIVE_STREAM_THRESHOLD) {
+                  scheduleLiveUpdate();
+                }
               }
             } catch (err) {
               console.error("SSE parse error", err, line);
@@ -174,6 +209,11 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
       if (charCountIntervalRef.current !== null) {
         clearInterval(charCountIntervalRef.current);
         charCountIntervalRef.current = null;
+      }
+      // Flush any pending live RAF before switching state
+      if (liveRafRef.current !== null) {
+        cancelAnimationFrame(liveRafRef.current);
+        liveRafRef.current = null;
       }
       setGeneratingCharCount(0);
       setIsGenerating(false);
@@ -203,13 +243,24 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
         return;
       }
 
-      // Phase 2: typewriter animation — fires onFinished when the animation completes
-      startTypewriter(fullText, () => {
+      const finalize = () => {
         setStreamingContent("");
         onFinished?.(fullText, usedSearch, sources);
         queryClient.invalidateQueries({ queryKey: getGetAnthropicConversationQueryKey(targetId) });
         queryClient.invalidateQueries({ queryKey: getListAnthropicConversationsQueryKey() });
-      });
+      };
+
+      if (fullText.length > LIVE_STREAM_THRESHOLD) {
+        // Large output: content was already shown live during streaming.
+        // Ensure the final state is set, then commit the message after a brief
+        // layout tick so the transition from streaming bubble → permanent bubble
+        // happens cleanly.
+        setStreamingContent(fullText);
+        setTimeout(finalize, 80);
+      } else {
+        // Small output: classic typewriter animation
+        startTypewriter(fullText, finalize);
+      }
 
     } catch (err: any) {
       if (err.name !== "AbortError") {
@@ -220,17 +271,18 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
       setIsTypewriting(false);
       setStreamingContent("");
     } finally {
-      // Always clear the char-count interval on exit (success, abort, or error).
       if (charCountIntervalRef.current !== null) {
         clearInterval(charCountIntervalRef.current);
         charCountIntervalRef.current = null;
+      }
+      if (liveRafRef.current !== null) {
+        cancelAnimationFrame(liveRafRef.current);
+        liveRafRef.current = null;
       }
       setGeneratingCharCount(0);
       setIsGenerating(false);
       isSearchingRef.current = false;
       setIsSearching(false);
-      // NOTE: intentionally do NOT reset isTypewriting/streamingContent here —
-      // the typewriter animation runs after this finally block and manages its own state.
     }
   };
 

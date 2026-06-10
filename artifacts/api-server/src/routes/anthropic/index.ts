@@ -259,7 +259,7 @@ async function runOpenAIStreaming(
     model: "gpt-4o",
     messages: allMessages,
     stream: true,
-    max_tokens: 8192,
+    max_tokens: 16384,
   });
 
   let fullText = "";
@@ -304,6 +304,63 @@ function lastUserText(msgs: MessageParam[]): string {
  *   search query is unparseable or the search itself fails, so the response
  *   is always non-empty.
  */
+// ── Streaming with auto-continuation ──────────────────────────────────────────
+
+/**
+ * Streams a Claude response to the SSE connection. If the model stops with
+ * stop_reason "max_tokens", it automatically appends the partial reply as an
+ * assistant turn, adds a "Continue." user turn, and loops — up to maxIterations
+ * times — so very long outputs are delivered in full without the client needing
+ * to do anything.
+ */
+async function streamUntilDone(
+  messages: MessageParam[],
+  system: string,
+  res: Response,
+  log: Request["log"],
+  maxIterations = 5
+): Promise<string> {
+  let fullText = "";
+  let currentMessages = [...messages];
+
+  for (let iter = 0; iter < maxIterations; iter++) {
+    let chunkText = "";
+    let stopReason = "end_turn";
+
+    const stream = anthropic.messages.stream({
+      model: "claude-sonnet-4-6",
+      max_tokens: 16000,
+      system,
+      messages: currentMessages,
+    });
+
+    for await (const event of stream) {
+      if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+        chunkText += event.delta.text;
+        fullText += event.delta.text;
+        sseWrite(res, { content: event.delta.text });
+      }
+      if (event.type === "message_delta") {
+        stopReason = (event.delta as { stop_reason?: string }).stop_reason ?? "end_turn";
+      }
+    }
+
+    if (stopReason !== "max_tokens" || !chunkText) break;
+
+    // Notify the client that we are continuing (frontend ignores this gracefully)
+    sseWrite(res, { continuing: true });
+    log.info({ iter, totalChars: fullText.length }, "Auto-continuing truncated response");
+
+    currentMessages = [
+      ...currentMessages,
+      { role: "assistant", content: chunkText },
+      { role: "user", content: "Continue." },
+    ];
+  }
+
+  return fullText;
+}
+
 async function runStreamingConversation(
   chatMessages: MessageParam[],
   system: string,
@@ -314,7 +371,7 @@ async function runStreamingConversation(
 
   const detectionStream = anthropic.messages.stream({
     model: "claude-sonnet-4-6",
-    max_tokens: 8192,
+    max_tokens: 16000,
     system,
     tools: [WEB_SEARCH_TOOL],
     tool_choice: { type: "auto" },
@@ -324,6 +381,7 @@ async function runStreamingConversation(
   let inToolUse = false;
   let toolUseId = "";
   let toolInputJson = "";
+  let phase1StopReason = "end_turn";
 
   for await (const event of detectionStream) {
     switch (event.type) {
@@ -345,12 +403,26 @@ async function runStreamingConversation(
       case "content_block_stop":
         if (inToolUse) inToolUse = false;
         break;
+      case "message_delta":
+        phase1StopReason = (event.delta as { stop_reason?: string }).stop_reason ?? "end_turn";
+        break;
       default:
         break;
     }
   }
 
   if (!toolUseId) {
+    // Phase 1 was pure text generation — continue if it was cut off
+    if (phase1StopReason === "max_tokens" && fullText) {
+      sseWrite(res, { continuing: true });
+      const contMessages: MessageParam[] = [
+        ...chatMessages,
+        { role: "assistant", content: fullText },
+        { role: "user", content: "Continue." },
+      ];
+      const moreText = await streamUntilDone(contMessages, system, res, log);
+      fullText += moreText;
+    }
     return { fullText, usedSearch: false, sources: [] };
   }
 
@@ -395,19 +467,8 @@ async function runStreamingConversation(
     { role: "user", content: synthesisUserContent },
   ];
 
-  const synthesisStream = anthropic.messages.stream({
-    model: "claude-sonnet-4-6",
-    max_tokens: 8192,
-    system,
-    messages: synthesisMessages,
-  });
-
-  for await (const event of synthesisStream) {
-    if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-      fullText += event.delta.text;
-      sseWrite(res, { content: event.delta.text });
-    }
-  }
+  const synthesisText = await streamUntilDone(synthesisMessages, system, res, log);
+  fullText += synthesisText;
 
   return { fullText, usedSearch: true, sources };
 }
@@ -743,23 +804,7 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
       sources = [];
     } else if (parsedAttachments.length > 0) {
       // ── CORTEX standard: Claude with image — skip tool-use path ───────────
-      const stream = anthropic.messages.stream({
-        model: "claude-sonnet-4-6",
-        max_tokens: 8192,
-        system: effectiveSystemPrompt,
-        messages: chatMessages,
-      });
-      let text = "";
-      for await (const event of stream) {
-        if (
-          event.type === "content_block_delta" &&
-          event.delta.type === "text_delta"
-        ) {
-          text += event.delta.text;
-          sseWrite(res, { content: event.delta.text });
-        }
-      }
-      fullResponse = text;
+      fullResponse = await streamUntilDone(chatMessages, effectiveSystemPrompt, res, req.log);
       usedSearch = false;
       sources = [];
     } else {
