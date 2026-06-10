@@ -3,29 +3,22 @@ import OpenAI from "openai";
 
 const router: IRouter = Router();
 
-const OPENAI_VOICE_MAP: Record<string, string> = {
-  nova: "nova",
-  aria: "shimmer",
-  echo: "echo",
+const VOICE_MAP: Record<string, "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer"> = {
+  nova:  "nova",
+  aria:  "shimmer",
+  echo:  "echo",
   orion: "onyx",
 };
 
 function getOpenAIClient() {
   const integrationKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
   const integrationBase = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
-
   if (integrationKey && integrationBase) {
     return new OpenAI({ apiKey: integrationKey, baseURL: integrationBase });
   }
-
   const directKey = process.env.OPENAI_API_KEY;
-  if (directKey) {
-    return new OpenAI({ apiKey: directKey });
-  }
-
-  throw new Error(
-    "No OpenAI API key found. Set OPENAI_API_KEY (or the Replit AI_INTEGRATIONS_OPENAI_* vars)."
-  );
+  if (directKey) return new OpenAI({ apiKey: directKey });
+  throw new Error("No OpenAI API key found.");
 }
 
 router.post("/", async (req: Request, res: Response) => {
@@ -36,35 +29,19 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  const openaiVoice = (voiceId && OPENAI_VOICE_MAP[voiceId]) || "nova";
+  const voice = (voiceId && VOICE_MAP[voiceId]) || "nova";
 
   try {
     const openai = getOpenAIClient();
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-audio-mini",
-      modalities: ["text", "audio"],
-      audio: { voice: openaiVoice as "nova" | "shimmer" | "echo" | "onyx", format: "mp3" },
-      messages: [
-        {
-          role: "system",
-          content: "You are a text-to-speech assistant. Read the user's text aloud exactly as written, word for word, without adding any commentary, acknowledgments, or extra words.",
-        },
-        {
-          role: "user",
-          content: text.trim().slice(0, 4000),
-        },
-      ],
+    const mp3 = await openai.audio.speech.create({
+      model: "tts-1",
+      voice,
+      input: text.trim().slice(0, 4000),
+      response_format: "mp3",
     });
 
-    const audioData = response.choices[0]?.message?.audio?.data;
-    if (!audioData) {
-      req.log.error({ response }, "No audio data in TTS response");
-      res.status(502).json({ error: "No audio in response" });
-      return;
-    }
-
-    const audioBuffer = Buffer.from(audioData, "base64");
+    const audioBuffer = Buffer.from(await mp3.arrayBuffer());
     res.setHeader("Content-Type", "audio/mpeg");
     res.setHeader("Cache-Control", "no-store");
     res.send(audioBuffer);
