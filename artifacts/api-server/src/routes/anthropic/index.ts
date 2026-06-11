@@ -190,16 +190,16 @@ function sseWrite(res: Response, payload: Record<string, unknown>): void {
 // ── OpenAI client helper ──────────────────────────────────────────────────────
 
 function getOpenAIClient(): OpenAI {
+  const directKey = process.env.OPENAI_API_KEY;
+  if (directKey) {
+    return new OpenAI({ apiKey: directKey });
+  }
   const integrationKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
   const integrationBase = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
   if (integrationKey && integrationBase) {
     return new OpenAI({ apiKey: integrationKey, baseURL: integrationBase });
   }
-  const directKey = process.env.OPENAI_API_KEY;
-  if (directKey) {
-    return new OpenAI({ apiKey: directKey });
-  }
-  throw new Error("No OpenAI API key found. Set OPENAI_API_KEY or the Replit AI_INTEGRATIONS_OPENAI_* vars.");
+  throw new Error("No OpenAI API key found. Set OPENAI_API_KEY in Secrets.");
 }
 
 // ── OpenAI Streaming helper (CORTEX LITE) ─────────────────────────────────────
