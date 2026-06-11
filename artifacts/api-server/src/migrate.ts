@@ -36,7 +36,13 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS image_attachment TEXT;
 `;
 
 export async function runStartupMigrations(): Promise<void> {
-  const client = await pool.connect();
+  // Give the pool up to 15s to establish a connection before giving up
+  const client = await Promise.race([
+    pool.connect(),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("DB connection timeout after 15s")), 15_000)
+    ),
+  ]);
   try {
     await client.query(STARTUP_SQL);
     await client.query(ALTER_SQL);

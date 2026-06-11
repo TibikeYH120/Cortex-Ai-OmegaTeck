@@ -16,8 +16,37 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-await runStartupMigrations();
-logger.info("Database schema ready");
+// Retry migration up to 5 times — Neon/serverless DBs can be asleep at cold start
+const MAX_MIGRATION_ATTEMPTS = 5;
+const MIGRATION_RETRY_DELAY_MS = 3000;
+
+async function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+let migrationOk = false;
+for (let attempt = 1; attempt <= MAX_MIGRATION_ATTEMPTS; attempt++) {
+  try {
+    await runStartupMigrations();
+    logger.info("Database schema ready");
+    migrationOk = true;
+    break;
+  } catch (err) {
+    logger.warn(
+      { err, attempt, maxAttempts: MAX_MIGRATION_ATTEMPTS },
+      `Migration attempt ${attempt} failed — ${attempt < MAX_MIGRATION_ATTEMPTS ? `retrying in ${MIGRATION_RETRY_DELAY_MS / 1000}s…` : "giving up, starting server anyway"}`
+    );
+    if (attempt < MAX_MIGRATION_ATTEMPTS) {
+      await sleep(MIGRATION_RETRY_DELAY_MS);
+    }
+  }
+}
+
+if (!migrationOk) {
+  logger.warn(
+    "All migration attempts failed. Server will start anyway — the schema may already be up to date."
+  );
+}
 
 if (!process.env["TAVILY_API_KEY"]) {
   logger.warn(
