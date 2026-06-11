@@ -320,10 +320,42 @@ export function ChatArea() {
   };
 
   const suggestionCards = [
-    { icon: "⚛️", title: "React component", sub: "Help me build one", prompt: "Help me write a React component with TypeScript" },
-    { icon: "🎮", title: "Game Design Doc", sub: "Design a new game", prompt: "Write a game design document for an indie game" },
-    { icon: "🌐", title: "Three.js basics", sub: "3D web development", prompt: "Explain Three.js fundamentals for a beginner" },
-    { icon: "✦", title: "Landing page", sub: "OmegaTeck style", prompt: "Design a modern cyberpunk-style landing page" }
+    {
+      accent: "#00d0ff",
+      icon: (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5"><path d="M10 2L3 7v6l7 5 7-5V7L10 2z" stroke="#00d0ff" strokeWidth="1.5" strokeLinejoin="round"/><circle cx="10" cy="10" r="2" fill="#00d0ff" opacity=".7"/></svg>
+      ),
+      title: "React component",
+      sub: "TypeScript + hooks",
+      prompt: "Help me write a React component with TypeScript"
+    },
+    {
+      accent: "#6c3bff",
+      icon: (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5"><rect x="3" y="3" width="14" height="14" rx="2" stroke="#6c3bff" strokeWidth="1.5"/><path d="M7 8h6M7 11h4" stroke="#6c3bff" strokeWidth="1.5" strokeLinecap="round"/></svg>
+      ),
+      title: "Game Design Doc",
+      sub: "Indie game concept",
+      prompt: "Write a game design document for an indie game"
+    },
+    {
+      accent: "#00ff88",
+      icon: (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5"><circle cx="10" cy="10" r="7" stroke="#00ff88" strokeWidth="1.5"/><path d="M10 3v7l4 2" stroke="#00ff88" strokeWidth="1.5" strokeLinecap="round"/></svg>
+      ),
+      title: "Three.js basics",
+      sub: "3D web development",
+      prompt: "Explain Three.js fundamentals for a beginner"
+    },
+    {
+      accent: "#f97316",
+      icon: (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5"><path d="M4 16h12M4 12h8M4 8h10" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round"/><circle cx="15" cy="5" r="2.5" fill="#f97316" opacity=".7"/></svg>
+      ),
+      title: "Landing page",
+      sub: "OmegaTeck cyberpunk",
+      prompt: "Design a modern cyberpunk-style landing page"
+    }
   ];
 
   const showWelcome = !activeConversationId && localMessages.length === 0;
@@ -424,19 +456,40 @@ export function ChatArea() {
                   Ask me anything — coding, game design, web development, creative ideas.
                 </p>
 
-                <div className="grid grid-cols-2 gap-2 sm:gap-3 w-full max-w-lg">
+                <div className="grid grid-cols-2 gap-2 sm:gap-2.5 w-full max-w-lg">
                   {suggestionCards.map((card, i) => (
                     <motion.button
                       key={i}
-                      initial={{ opacity: 0, y: 10 }}
+                      initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.07 }}
+                      transition={{ delay: i * 0.06, ease: [0.16, 1, 0.3, 1] }}
                       onClick={() => { setInput(card.prompt); textareaRef.current?.focus(); }}
-                      className="flex flex-col text-left p-3 sm:p-4 rounded-xl bg-s2 border border-border hover:border-border2 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/50 transition-all group"
+                      className="group flex flex-col text-left p-3.5 sm:p-4 rounded-2xl transition-all duration-200 hover:-translate-y-0.5 relative overflow-hidden"
+                      style={{
+                        background: `rgba(${card.accent === "#00d0ff" ? "0,208,255" : card.accent === "#6c3bff" ? "108,59,255" : card.accent === "#00ff88" ? "0,255,136" : "249,115,22"},0.04)`,
+                        border: `1px solid rgba(${card.accent === "#00d0ff" ? "0,208,255" : card.accent === "#6c3bff" ? "108,59,255" : card.accent === "#00ff88" ? "0,255,136" : "249,115,22"},0.12)`,
+                        boxShadow: "0 2px 12px rgba(0,0,0,0.3)",
+                      }}
                     >
-                      <span className="text-lg sm:text-xl mb-1 sm:mb-2 grayscale group-hover:grayscale-0 transition-all">{card.icon}</span>
-                      <span className="text-xs sm:text-sm font-semibold text-white mb-0.5 sm:mb-1">{card.title}</span>
-                      <span className="text-[10px] sm:text-[11px] text-muted font-light">{card.sub}</span>
+                      <div
+                        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-2xl"
+                        style={{
+                          background: `radial-gradient(ellipse at top left, rgba(${card.accent === "#00d0ff" ? "0,208,255" : card.accent === "#6c3bff" ? "108,59,255" : card.accent === "#00ff88" ? "0,255,136" : "249,115,22"},0.07) 0%, transparent 70%)`,
+                        }}
+                      />
+                      <div className="relative">
+                        <div
+                          className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center mb-2.5 sm:mb-3 transition-transform duration-200 group-hover:scale-105"
+                          style={{
+                            background: `rgba(${card.accent === "#00d0ff" ? "0,208,255" : card.accent === "#6c3bff" ? "108,59,255" : card.accent === "#00ff88" ? "0,255,136" : "249,115,22"},0.1)`,
+                            border: `1px solid rgba(${card.accent === "#00d0ff" ? "0,208,255" : card.accent === "#6c3bff" ? "108,59,255" : card.accent === "#00ff88" ? "0,255,136" : "249,115,22"},0.2)`,
+                          }}
+                        >
+                          {card.icon}
+                        </div>
+                        <div className="text-xs sm:text-[13px] font-semibold text-white mb-0.5 leading-tight">{card.title}</div>
+                        <div className="text-[10px] sm:text-[11px] font-mono leading-snug" style={{ color: card.accent, opacity: 0.6 }}>{card.sub}</div>
+                      </div>
                     </motion.button>
                   ))}
                 </div>

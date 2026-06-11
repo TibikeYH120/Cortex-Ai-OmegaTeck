@@ -17,18 +17,18 @@ const FEATURES = [
 ];
 
 const FREE_FEATURES = [
-  "10 messages per day",
-  "CORTEX LITE model",
+  "50 messages per day",
+  "CORTEX LITE model (GPT-4o)",
   "Limited conversation history",
 ];
 
 export function Pricing() {
   const [yearly, setYearly] = useState(false);
 
-  const monthlyPrice = 12.99;
-  const yearlyPrice = 129;
-  const yearlyMonthly = (yearlyPrice / 12).toFixed(2);
-  const saving = Math.round(monthlyPrice * 12 - yearlyPrice);
+  const monthlyHUF = 6500;
+  const yearlyHUF  = 70000;
+  const yearlyMonthlyHUF = Math.round(yearlyHUF / 12);
+  const savingHUF = monthlyHUF * 12 - yearlyHUF;
 
   return (
     <div className="min-h-screen bg-background relative overflow-x-hidden">
@@ -109,7 +109,7 @@ export function Pricing() {
                 animate={{ opacity: 1, scale: 1 }}
                 className="font-mono text-[10px] bg-[#00ff88]/10 border border-[#00ff88]/30 text-[#00ff88] px-2 py-0.5 rounded-full tracking-widest uppercase"
               >
-                Save €{saving}
+                -{savingHUF.toLocaleString("hu-HU")} HUF
               </motion.span>
             )}
           </div>
@@ -183,12 +183,12 @@ export function Pricing() {
                   key={yearly ? "yearly" : "monthly"}
                   initial={{ opacity: 0, y: -6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex items-end gap-1 mb-1"
+                  className="flex items-end gap-1.5 mb-1"
                 >
                   <span className="font-display font-bold text-4xl text-white">
-                    €{yearly ? yearlyMonthly : monthlyPrice}
+                    {(yearly ? yearlyMonthlyHUF : monthlyHUF).toLocaleString("hu-HU")}
                   </span>
-                  <span className="font-mono text-sm text-muted/60 mb-1">/mo</span>
+                  <span className="font-mono text-sm text-muted/60 mb-1.5">HUF/hó</span>
                 </motion.div>
 
                 {yearly && (
@@ -197,7 +197,7 @@ export function Pricing() {
                     animate={{ opacity: 1 }}
                     className="font-mono text-[11px] text-muted/50 mb-3"
                   >
-                    €{yearlyPrice} billed annually
+                    {yearlyHUF.toLocaleString("hu-HU")} HUF/év — számlázva évente
                   </motion.div>
                 )}
 

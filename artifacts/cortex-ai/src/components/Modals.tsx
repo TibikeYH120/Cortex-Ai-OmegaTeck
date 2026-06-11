@@ -1146,7 +1146,7 @@ export function SubscriptionModal({ open, onOpenChange }: ModalProps) {
 
                 {/* Limits info */}
                 <div className="text-center text-[11px] text-muted/40 font-mono">
-                  Ingyenes: 10 üzenet/nap &nbsp;·&nbsp; Vendég: 5 üzenet/nap
+                  Tag: 50 üzenet/nap &nbsp;·&nbsp; Vendég: 20 üzenet/nap
                 </div>
 
                 {/* Bank transfer section */}

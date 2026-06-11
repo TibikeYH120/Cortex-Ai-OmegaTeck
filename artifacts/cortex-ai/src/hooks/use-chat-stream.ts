@@ -188,6 +188,14 @@ export function useChatStream({ conversationId, onFinished, onImageGenerated, on
                 continue;
               }
 
+              if (data.error) {
+                const msg = typeof data.error === "string" ? data.error : "Server error";
+                if (msg.toLowerCase().includes("budget") || msg.toLowerCase().includes("free_tier")) {
+                  throw new Error("Az AI szolgáltatás havi kerete elfogyott. Kérjük, használd a CORTEX LITE módot (GPT-4o).");
+                }
+                throw new Error(msg);
+              }
+
               if (data.done) {
                 usedSearch = data.usedSearch ?? false;
                 if (typeof data.remaining === "number") setDailyRemaining(data.remaining);

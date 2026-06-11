@@ -862,12 +862,19 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
     }
     sseWrite(res, donePayload);
     res.end();
-  } catch (err) {
+  } catch (err: any) {
     req.log.error({ err }, "Send message error");
+    const isBudget = err?.error?.code === "FREE_TIER_BUDGET_EXCEEDED" ||
+      err?.code === "FREE_TIER_BUDGET_EXCEEDED" ||
+      String(err?.message ?? "").includes("FREE_TIER_BUDGET_EXCEEDED") ||
+      String(err?.message ?? "").includes("spend limit exceeded");
+    const userMsg = isBudget
+      ? "Az AI szolgáltatás havi kerete elfogyott. Válts CORTEX LITE módra (GPT-4o), vagy kérjük, próbáld újra holnap."
+      : (err?.message || "Server error");
     if (!res.headersSent) {
-      res.status(500).json({ error: "Server error" });
+      res.status(500).json({ error: userMsg });
     } else {
-      sseWrite(res, { error: "Server error" });
+      sseWrite(res, { error: userMsg });
       res.end();
     }
   }
