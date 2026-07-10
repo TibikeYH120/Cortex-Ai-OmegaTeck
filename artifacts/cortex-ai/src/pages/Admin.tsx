@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Shield, RefreshCw, Zap, User, Trash2, KeyRound, ChevronDown, ChevronUp, Eye, EyeOff, LogOut } from "lucide-react";
+import { Shield, RefreshCw, Zap, User, Trash2, KeyRound, ChevronDown, ChevronUp, Eye, EyeOff, LogOut, Database, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const API = "/api/admin";
@@ -12,6 +12,12 @@ interface AdminUser {
   createdAt: string;
   todayMsgs: number;
   totalMsgs: number;
+}
+
+interface CacheStats {
+  configured: boolean;
+  totalCached: number;
+  freshCached: number;
 }
 
 function useAdminFetch(password: string) {
@@ -260,6 +266,7 @@ export function Admin() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [cacheStats, setCacheStats] = useState<CacheStats | null>(null);
 
   const adminFetch = useAdminFetch(password);
 
@@ -274,9 +281,22 @@ export function Admin() {
     }
   }, [password, adminFetch]);
 
+  const loadCacheStats = useCallback(async () => {
+    if (!password) return;
+    try {
+      const res = await adminFetch("/search-cache-stats");
+      if (res.ok) setCacheStats(await res.json());
+    } catch {
+      // ignore — widget just stays hidden
+    }
+  }, [password, adminFetch]);
+
   useEffect(() => {
-    if (password) loadUsers();
-  }, [password, loadUsers]);
+    if (password) {
+      loadUsers();
+      loadCacheStats();
+    }
+  }, [password, loadUsers, loadCacheStats]);
 
   const filtered = users.filter(u =>
     u.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -308,7 +328,7 @@ export function Admin() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={loadUsers}
+              onClick={() => { loadUsers(); loadCacheStats(); }}
               disabled={loading}
               className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-mono text-muted hover:text-white hover:bg-white/5 border border-white/8 transition-all"
             >
@@ -338,6 +358,42 @@ export function Admin() {
             </div>
           ))}
         </div>
+
+        {/* Search cache (Cloudflare D1) */}
+        {cacheStats && (
+          <div className="glass-ai rounded-xl px-4 py-3 mb-6 flex items-center gap-4">
+            <div className="w-9 h-9 rounded-lg bg-secondary/10 border border-secondary/30 flex items-center justify-center shrink-0">
+              <Database size={15} className="text-secondary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-white">Kereső cache</span>
+                <span className={cn(
+                  "font-mono text-[9px] px-1.5 py-0.5 rounded uppercase tracking-widest",
+                  cacheStats.configured
+                    ? "bg-[#00ff88]/15 text-[#00ff88] border border-[#00ff88]/30"
+                    : "bg-white/5 text-muted/60 border border-white/8"
+                )}>
+                  {cacheStats.configured ? "● D1 aktív" : "○ nincs konfigurálva"}
+                </span>
+              </div>
+              <div className="text-[10px] font-mono text-muted/50 flex items-center gap-1.5 mt-0.5">
+                <Search size={10} />
+                A találatok Cloudflare D1-be kerülnek mentésre, hogy ne kelljen minden kérdésre új keresést indítani.
+              </div>
+            </div>
+            <div className="hidden sm:flex items-center gap-4 shrink-0 text-center">
+              <div>
+                <div className="font-display font-bold text-lg text-secondary">{cacheStats.freshCached}</div>
+                <div className="font-mono text-[9px] text-muted/50 uppercase tracking-widest">friss</div>
+              </div>
+              <div>
+                <div className="font-display font-bold text-lg text-white">{cacheStats.totalCached}</div>
+                <div className="font-mono text-[9px] text-muted/50 uppercase tracking-widest">összes</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Search */}
         <input

@@ -4,6 +4,7 @@ import { conversations, messages, usersTable } from "@workspace/db";
 import { eq, asc, desc, and, gte, count, sql } from "drizzle-orm";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import OpenAI from "openai";
+import { getCachedSearch, setCachedSearch } from "../../lib/d1-cache.js";
 import type {
   MessageParam,
   Tool,
@@ -90,24 +91,36 @@ async function wikipediaSearch(query: string): Promise<SearchResult[]> {
  */
 async function tavilySearch(query: string): Promise<SearchResult[]> {
   const apiKey = process.env["TAVILY_API_KEY"];
-  if (!apiKey) return [];
+  if (!apiKey) {
+    console.error("[search] TAVILY_API_KEY is not set — falling back to Wikipedia only.");
+    return [];
+  }
 
-  const resp = await fetch("https://api.tavily.com/search", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      query,
-      max_results: 8,
-      search_depth: "basic",
-      include_answer: false,
-    }),
-    signal: AbortSignal.timeout(10000),
-  });
+  let resp: globalThis.Response;
+  try {
+    resp = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        query,
+        max_results: 8,
+        search_depth: "basic",
+        include_answer: false,
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch (err) {
+    console.error("[search] Tavily request failed:", err instanceof Error ? err.message : err);
+    return [];
+  }
 
-  if (!resp.ok) return [];
+  if (!resp.ok) {
+    console.error(`[search] Tavily returned HTTP ${resp.status} for query "${query}"`);
+    return [];
+  }
 
   const data = (await resp.json()) as {
     results?: Array<{
@@ -129,12 +142,18 @@ async function tavilySearch(query: string): Promise<SearchResult[]> {
 
 /**
  * Combined search strategy:
- *  1. Tavily Search (if TAVILY_API_KEY is set) — real web results for AI
- *  2. Wikipedia — factual encyclopaedic coverage, run in parallel as supplement
- *  3. If Tavily is unavailable, falls back to Wikipedia-only results
+ *  1. D1 cache — if a fresh (< 6h) result set exists for this query, reuse it
+ *     instantly instead of hitting Tavily/Wikipedia again.
+ *  2. Tavily Search (if TAVILY_API_KEY is set) — real web results for AI
+ *  3. Wikipedia — factual encyclopaedic coverage, run in parallel as supplement
+ *  4. If Tavily is unavailable, falls back to Wikipedia-only results
+ *  5. Fresh results are written back to D1 so the next lookup is "napra kész" (up to date) and fast.
  * Results are deduplicated by URL and capped at 8.
  */
 async function runWebSearch(query: string): Promise<SearchResult[]> {
+  const cached = await getCachedSearch<SearchResult[]>(query);
+  if (cached && cached.length > 0) return cached;
+
   const hasTavily = Boolean(process.env["TAVILY_API_KEY"]);
 
   const [tavilyResult, wikiResult] = await Promise.allSettled([
@@ -157,7 +176,13 @@ async function runWebSearch(query: string): Promise<SearchResult[]> {
     return true;
   });
 
-  return combined.slice(0, 8);
+  const final = combined.slice(0, 8);
+
+  if (final.length > 0) {
+    void setCachedSearch(query, final);
+  }
+
+  return final;
 }
 
 // ── Anthropic tool definition ─────────────────────────────────────────────────

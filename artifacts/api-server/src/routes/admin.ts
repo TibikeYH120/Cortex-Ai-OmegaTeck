@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@workspace/db";
 import { usersTable, messages, conversations } from "@workspace/db";
 import { eq, desc, count, gte, and } from "drizzle-orm";
+import { getCacheStats } from "../lib/d1-cache.js";
 
 const router: IRouter = Router();
 
@@ -121,6 +122,21 @@ router.delete("/users/:id", requireAdmin, async (req: Request, res: Response) =>
     res.json({ ok: true });
   } catch (err) {
     req.log.error({ err }, "Admin delete user error");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Search cache stats (D1)
+router.get("/search-cache-stats", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const stats = await getCacheStats();
+    if (!stats) {
+      res.status(503).json({ error: "Cache backend unreachable" });
+      return;
+    }
+    res.json(stats);
+  } catch (err) {
+    req.log.error({ err }, "Admin search cache stats error");
     res.status(500).json({ error: "Server error" });
   }
 });
