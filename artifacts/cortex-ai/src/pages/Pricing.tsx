@@ -18,15 +18,15 @@ const FEATURES = [
 
 const FREE_FEATURES = [
   "50 messages per day",
-  "CORTEX LITE model (GPT-4o)",
+  "CORTEX LITE model (GPT-5.1)",
   "Limited conversation history",
 ];
 
 export function Pricing() {
   const [yearly, setYearly] = useState(false);
 
-  const monthlyHUF = 6500;
-  const yearlyHUF  = 70000;
+  const monthlyHUF = 5500;
+  const yearlyHUF  = 120000;
   const yearlyMonthlyHUF = Math.round(yearlyHUF / 12);
   const savingHUF = monthlyHUF * 12 - yearlyHUF;
 

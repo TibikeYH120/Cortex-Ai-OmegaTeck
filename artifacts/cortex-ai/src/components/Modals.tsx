@@ -923,11 +923,11 @@ export function SettingsModal({ open, onOpenChange }: ModalProps) {
 
                 <div className="p-4 rounded-xl space-y-2 text-[11px] font-mono" style={{ background: "#10101f", border: "1px solid rgba(255,255,255,0.04)" }}>
                   {[
-                    { k: "Platform", v: "CORTEX AI 1.0.0" },
+                    { k: "Platform", v: "CORTEX AI 0.9.8" },
                     { k: "Developer", v: "OmegaTeck Technology" },
-                    { k: "Founder", v: "Tibor" },
+                    { k: "Founder", v: "TibikeYH120,Balukapitany" },
                     { k: "AI Engine", v: "CORTEX AI Engine" },
-                    { k: "Projects", v: "OmegaHumanity" },
+                    { k: "Projects", v: "CortexPhone" },
                   ].map(({ k, v }, i) => (
                     <div key={i} className="flex justify-between">
                       <span className="text-muted/40">{k}</span>
