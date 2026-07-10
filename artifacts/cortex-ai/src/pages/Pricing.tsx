@@ -6,7 +6,7 @@ import { Link } from "wouter";
 const FEATURES = [
   "Unlimited messages",
   "CORTEX model (Claude Sonnet)",
-  "Image generation (Gemini Vision AI)",
+  "Image generation (Cortex CRK)",
   "Real-time web search",
   "Voice input & text-to-speech",
   "Voice Mode – live conversation",

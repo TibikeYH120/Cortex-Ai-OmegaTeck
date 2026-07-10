@@ -965,7 +965,7 @@ const MessageBubble = memo(function MessageBubble({
                 </div>
                 <div>
                   <div className="font-mono text-[11px] text-primary tracking-widest uppercase">Generating image...</div>
-                  <div className="text-[10px] text-muted/50 font-mono mt-0.5">Gemini Vision AI</div>
+                  <div className="text-[10px] text-muted/50 font-mono mt-0.5">Cortex CRK</div>
                 </div>
               </div>
               <div className="h-px bg-gradient-to-r from-[#00d0ff]/30 via-[#6c3bff]/30 to-transparent animate-pulse" />
