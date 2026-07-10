@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Shield, RefreshCw, Zap, User, Trash2, KeyRound, ChevronDown, ChevronUp, Eye, EyeOff, LogOut, Database, Search } from "lucide-react";
+import { Shield, RefreshCw, Zap, User, Trash2, KeyRound, ChevronDown, ChevronUp, Eye, EyeOff, LogOut, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const API = "/api/admin";
@@ -361,36 +361,28 @@ export function Admin() {
 
         {/* Search cache (Cloudflare D1) */}
         {cacheStats && (
-          <div className="glass-ai rounded-xl px-4 py-3 mb-6 flex items-center gap-4">
-            <div className="w-9 h-9 rounded-lg bg-secondary/10 border border-secondary/30 flex items-center justify-center shrink-0">
-              <Database size={15} className="text-secondary" />
+          <div className="relative overflow-hidden rounded-xl mb-6 px-4 py-2.5 flex items-center gap-3 bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] transition-colors hover:border-white/10">
+            <div className="w-6 h-6 rounded-md bg-white/5 border border-white/8 flex items-center justify-center shrink-0">
+              <Database size={11} className="text-muted/70" />
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-white">Kereső cache</span>
-                <span className={cn(
-                  "font-mono text-[9px] px-1.5 py-0.5 rounded uppercase tracking-widest",
-                  cacheStats.configured
-                    ? "bg-[#00ff88]/15 text-[#00ff88] border border-[#00ff88]/30"
-                    : "bg-white/5 text-muted/60 border border-white/8"
-                )}>
-                  {cacheStats.configured ? "● D1 aktív" : "○ nincs konfigurálva"}
-                </span>
-              </div>
-              <div className="text-[10px] font-mono text-muted/50 flex items-center gap-1.5 mt-0.5">
-                <Search size={10} />
-                A találatok Cloudflare D1-be kerülnek mentésre, hogy ne kelljen minden kérdésre új keresést indítani.
-              </div>
-            </div>
-            <div className="hidden sm:flex items-center gap-4 shrink-0 text-center">
-              <div>
-                <div className="font-display font-bold text-lg text-secondary">{cacheStats.freshCached}</div>
-                <div className="font-mono text-[9px] text-muted/50 uppercase tracking-widest">friss</div>
-              </div>
-              <div>
-                <div className="font-display font-bold text-lg text-white">{cacheStats.totalCached}</div>
-                <div className="font-mono text-[9px] text-muted/50 uppercase tracking-widest">összes</div>
-              </div>
+
+            <span className="text-[11px] font-mono text-muted/50 tracking-wide">Kereső cache</span>
+
+            <span className={cn(
+              "w-1 h-1 rounded-full shrink-0",
+              cacheStats.configured ? "bg-[#00ff88]/70 shadow-[0_0_6px_rgba(0,255,136,0.5)]" : "bg-muted/30"
+            )} />
+
+            <span className="text-[10px] font-mono text-muted/35">
+              {cacheStats.configured ? "D1 aktív" : "nincs konfigurálva"}
+            </span>
+
+            <div className="flex-1" />
+
+            <div className="hidden sm:flex items-center gap-3 shrink-0 text-[10px] font-mono text-muted/40">
+              <span>{cacheStats.freshCached} friss</span>
+              <span className="w-px h-3 bg-white/10" />
+              <span>{cacheStats.totalCached} összesen</span>
             </div>
           </div>
         )}
