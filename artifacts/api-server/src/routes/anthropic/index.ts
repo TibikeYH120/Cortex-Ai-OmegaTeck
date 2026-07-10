@@ -230,7 +230,7 @@ function getOpenAIClient(): OpenAI {
 
 // ── OpenAI Streaming helper (CORTEX LITE) ─────────────────────────────────────
 
-const BASE_SYSTEM_PROMPT_LITE = `You are CORTEX AI (Lite Mode), the fast AI assistant of OmegaTeck Technology. Built by Tibor.
+const BASE_SYSTEM_PROMPT_LITE = `You are CORTEX AI (Lite Mode), the fast AI assistant of OmegaTeck Technology. Built by the CORTEX Team.
 
 Personality — Grok meets a senior developer, not a customer service bot:
 - Witty, sharp, occasionally sarcastic — but never mean
@@ -569,7 +569,7 @@ function ownerMemoryKey(owner: Owner): string {
 
 const router: IRouter = Router();
 
-const BASE_SYSTEM_PROMPT = `You are CORTEX AI, the advanced AI assistant of OmegaTeck Technology. Built by Tibor.
+const BASE_SYSTEM_PROMPT = `You are CORTEX AI, the advanced AI assistant of OmegaTeck Technology. Built by the CORTEX Team.
 
 Personality — Grok meets a senior developer, not a customer service bot:
 - Witty, sharp, occasionally sarcastic — but never cruel
