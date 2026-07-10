@@ -5,6 +5,7 @@ import { eq, asc, desc, and, gte, count, sql } from "drizzle-orm";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import OpenAI from "openai";
 import { getCachedSearch, setCachedSearch } from "../../lib/d1-cache.js";
+import { getMemories, addMemory, deleteMemory, clearMemories, isMemoryConfigured } from "../../lib/d1-memory.js";
 import type {
   MessageParam,
   Tool,
@@ -509,8 +510,11 @@ async function runStreamingConversation(
 
 // ── System prompt builder ─────────────────────────────────────────────────────
 
-function buildSystemPrompt(systemAbout?: string | null, systemRespond?: string | null): string {
+function buildSystemPrompt(systemAbout?: string | null, systemRespond?: string | null, memoryFacts?: string[]): string {
   let prompt = BASE_SYSTEM_PROMPT;
+  if (memoryFacts && memoryFacts.length > 0) {
+    prompt += `\n\n--- WHAT YOU REMEMBER ABOUT THIS USER (from past conversations) ---\n${memoryFacts.map(f => `- ${f}`).join("\n")}\nUse this naturally when relevant — don't recite it like a list unless asked.`;
+  }
   if (systemAbout?.trim()) {
     prompt += `\n\n--- USER CONTEXT (always keep in mind) ---\n${systemAbout.trim()}`;
   }
@@ -518,6 +522,47 @@ function buildSystemPrompt(systemAbout?: string | null, systemRespond?: string |
     prompt += `\n\n--- RESPONSE STYLE PREFERENCES ---\n${systemRespond.trim()}`;
   }
   return prompt;
+}
+
+/**
+ * Lightweight fact extraction: after each exchange, ask a cheap OpenAI call
+ * whether the user shared anything durable worth remembering (name, job,
+ * preferences, ongoing projects, etc.). Fire-and-forget — never blocks or
+ * fails the main chat response.
+ */
+async function extractAndRememberFacts(ownerKey: string, userText: string, assistantText: string): Promise<void> {
+  if (!isMemoryConfigured() || !userText.trim()) return;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 200,
+      system: `Extract durable facts worth remembering long-term about the USER from this exchange (name, job/role, preferences, ongoing projects, likes/dislikes, personal context). Ignore one-off questions and small talk. Reply ONLY with compact JSON: {"facts": ["fact 1", "fact 2"]}. If nothing durable was shared, reply {"facts": []}. Max 3 facts, each under 15 words, written in Hungarian.`,
+      messages: [
+        {
+          role: "user",
+          content: `User: ${userText.slice(0, 1500)}\n\nAssistant: ${assistantText.slice(0, 500)}`,
+        },
+      ],
+    });
+
+    const block = response.content.find(b => b.type === "text");
+    const raw = block && block.type === "text" ? block.text.trim() : "{}";
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return;
+    const parsed = JSON.parse(jsonMatch[0]) as { facts?: string[] };
+    for (const fact of parsed.facts ?? []) {
+      if (typeof fact === "string" && fact.trim()) {
+        await addMemory(ownerKey, fact);
+      }
+    }
+  } catch (err) {
+    console.error("[memory] fact extraction failed:", err instanceof Error ? err.message : err);
+  }
+}
+
+function ownerMemoryKey(owner: Owner): string {
+  return owner.type === "user" ? `user:${owner.userId}` : `guest:${owner.sessionId}`;
 }
 
 // ── Express router ────────────────────────────────────────────────────────────
@@ -565,6 +610,43 @@ You have access to a web_search tool. Use it when:
 - You are uncertain whether your training data is current enough
 Do NOT use web search for general knowledge questions you can answer confidently.
 After receiving search results, synthesize them into a helpful answer and always mention sources.`;
+
+// ── Memory routes ────────────────────────────────────────────────────────────
+
+router.get("/memory", async (req: Request, res: Response) => {
+  try {
+    const owner = getOwner(req);
+    const rows = await getMemories(ownerMemoryKey(owner));
+    res.json(rows.map(m => ({ id: m.id, fact: m.fact, createdAt: m.createdAt })));
+  } catch (err) {
+    req.log.error({ err }, "List memory error");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.delete("/memory/:id", async (req: Request, res: Response) => {
+  const memId = parseInt(String(req.params.id), 10);
+  if (isNaN(memId)) { res.status(400).json({ error: "Invalid ID" }); return; }
+  try {
+    const owner = getOwner(req);
+    await deleteMemory(ownerMemoryKey(owner), memId);
+    res.json({ success: true });
+  } catch (err) {
+    req.log.error({ err }, "Delete memory error");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.delete("/memory", async (req: Request, res: Response) => {
+  try {
+    const owner = getOwner(req);
+    await clearMemories(ownerMemoryKey(owner));
+    res.json({ success: true });
+  } catch (err) {
+    req.log.error({ err }, "Clear memory error");
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 // ── CRUD routes ───────────────────────────────────────────────────────────────
 
@@ -801,7 +883,10 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
       systemAbout = typeof guestAbout === "string" ? guestAbout.trim().slice(0, 500) || null : null;
       systemRespond = typeof guestRespond === "string" ? guestRespond.trim().slice(0, 500) || null : null;
     }
-    const effectiveSystemPrompt = buildSystemPrompt(systemAbout, systemRespond);
+    const memoryKey = ownerMemoryKey(owner);
+    const memoryRows = await getMemories(memoryKey);
+    const memoryFacts = memoryRows.map(m => m.fact);
+    const effectiveSystemPrompt = buildSystemPrompt(systemAbout, systemRespond, memoryFacts);
 
     // Persist only text — base64 images are ephemeral and too large for DB storage.
     await db.insert(messages).values({ conversationId: id, role: "user", content: textContent });
@@ -875,6 +960,9 @@ router.post("/conversations/:id/messages", async (req: Request, res: Response) =
       role: "assistant",
       content: fullResponse,
     });
+
+    // Fire-and-forget: never blocks or fails the response to the client.
+    void extractAndRememberFacts(memoryKey, textContent, fullResponse);
 
     if (usedSearch && sources.length > 0) {
       sseWrite(res, { sources });

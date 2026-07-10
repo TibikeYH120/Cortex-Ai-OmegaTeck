@@ -1,2 +1,3 @@
 - [Large-output streaming](large-output-streaming.md) — streamUntilDone() loops up to 5x on max_tokens; max_tokens raised to 16000 (Claude) / 16384 (OpenAI); live RAF display for outputs >2000 chars.
 - [Mobile responsive fixes](mobile-responsive.md) — message header uses flex-wrap gap-y-1; speak button text hidden sm:inline; user bubble break-words; messages area overflow-x-hidden.
+- [D1 cross-conversation AI memory](d1-ai-memory.md) — CORTEX remembers durable facts about users via Cloudflare D1, extracted with a cheap Anthropic call, injected into system prompt.
