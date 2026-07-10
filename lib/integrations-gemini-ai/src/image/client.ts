@@ -40,6 +40,27 @@ export async function generateImage(
   );
 
   if (!imagePart?.inlineData?.data) {
+    const textPart = candidate?.content?.parts?.find(
+      (part: { text?: string }) => part.text
+    ) as { text?: string } | undefined;
+    const finishReason = candidate?.finishReason;
+    const blockReason = (response as { promptFeedback?: { blockReason?: string } }).promptFeedback?.blockReason;
+
+    console.error("[gemini-image] No image data in response.", {
+      finishReason,
+      blockReason,
+      modelText: textPart?.text?.slice(0, 300),
+    });
+
+    if (blockReason) {
+      throw new Error(`Image request blocked by safety filters (${blockReason}). Try rephrasing the prompt.`);
+    }
+    if (finishReason && finishReason !== "STOP") {
+      throw new Error(`Image generation stopped early (${finishReason}). Try rephrasing the prompt.`);
+    }
+    if (textPart?.text) {
+      throw new Error(`Model responded with text instead of an image: "${textPart.text.slice(0, 200)}"`);
+    }
     throw new Error("No image data in response");
   }
 
