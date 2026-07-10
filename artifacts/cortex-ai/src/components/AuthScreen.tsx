@@ -98,7 +98,7 @@ export function AuthScreen() {
                   <circle cx="20" cy="20" r="3.5" fill="#00d0ff"/>
                 </svg>
               </div>
-              <span className="font-mono text-[9px] text-primary/50 tracking-[0.35em] uppercase mb-1.5">OmegaTeck Technology</span>
+              <span className="font-mono text-[9px] text-primary/80 tracking-[0.35em] uppercase mb-1.5">OmegaTeck Technology</span>
               <h1 className="font-display font-black text-2xl text-white tracking-widest text-glow-sm">CORTEX AI</h1>
             </div>
 
@@ -218,22 +218,22 @@ export function AuthScreen() {
 
             <div className="flex items-center gap-3 my-5">
               <div className="h-px flex-1 bg-white/6" />
-              <span className="text-[10px] font-mono text-muted/50 uppercase tracking-widest">or</span>
+              <span className="text-[10px] font-mono text-muted uppercase tracking-widest">or</span>
               <div className="h-px flex-1 bg-white/6" />
             </div>
 
             <button
               type="button"
               onClick={handleGuest}
-              className="w-full py-3 rounded-xl text-sm font-medium bg-white/3 border border-white/7 text-muted/80 hover:bg-white/5 hover:border-white/12 hover:text-white/90 transition-all"
+              className="w-full py-3 rounded-xl text-sm font-medium bg-white/3 border border-white/7 text-white/80 hover:bg-white/5 hover:border-white/12 hover:text-white transition-all"
             >
               Continue as guest
-              <span className="ml-2 text-muted/40 text-xs font-mono">20 msgs/day</span>
+              <span className="ml-2 text-muted text-xs font-mono">20 msgs/day</span>
             </button>
           </div>
         </div>
 
-        <p className="text-center text-[10px] font-mono text-muted/30 mt-5 tracking-widest uppercase">
+        <p className="text-center text-[10px] font-mono text-muted/60 mt-5 tracking-widest uppercase">
           OmegaTeck Technology © 2026
         </p>
       </motion.div>
